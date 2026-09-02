@@ -1,0 +1,13 @@
+# kobox2 agent notes（日本語版）
+
+- このリポジトリをhost非依存に保ちます。PachaOS固有のrole policyとpackagingは
+  PachaOSリポジトリに置きます。
+- Apache-2.0 controllerへLinux header、Linux構造体layout、module symbol、subsystem
+  semantics、`.ko` loaderを入れません。
+- GPL-only codeは`linux-sandbox` submoduleと独立runtime processに閉じ込めます。
+  Apache-2.0 controller codeをそのprocessへlinkしません。
+- wire messageにはpointer、host FD番号、host kernel object layoutを含めません。
+- `linux-sandbox`と共有するfileは`protocol/`に置き、MITのSPDX identifierを維持します。
+- 最初のprotocol versionを明示的にfreezeするまでは、互換性を約束しません。
+
+実際にagentへ適用される正本は[`AGENTS.md`](./AGENTS.md)です。

@@ -1,0 +1,6 @@
+kobox2
+Copyright 2026 kobox2 contributors
+
+This product includes a separately distributed GPL-2.0-only reference runtime
+in the linux-sandbox git submodule. The submodule is not part of the Apache-2.0
+controller program and is executed as a separate process.

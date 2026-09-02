@@ -1,0 +1,10 @@
+/.artifacts/
+/build/
+/out/
+/compile_commands.json
+
+*.o
+*.obj
+*.so
+*.a
+*.elf

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
+#include <kobox2/closure_manifest.h>
 #include <kobox2/protocol.h>
+#include <kobox2/sha256.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -178,9 +180,84 @@ static int test_message_envelope(void) {
     return 0;
 }
 
+static int test_sha256(void) {
+    static const uint8_t expected[KB2_SHA256_DIGEST_SIZE] = {
+        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea, 0x41, 0x41, 0x40,
+        0xde, 0x5d, 0xae, 0x22, 0x23, 0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17,
+        0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad,
+    };
+    uint8_t digest[KB2_SHA256_DIGEST_SIZE];
+
+    kb2_sha256("abc", 3, digest);
+    CHECK(memcmp(digest, expected, sizeof(expected)) == 0);
+    return 0;
+}
+
+#define TEST_STRING(value) {(value), (uint32_t)(sizeof(value) - 1u)}
+
+static int test_closure_manifest(void) {
+    kb2_closure_manifest_artifact_t artifact = {
+        .node_id = 9,
+        .kind = KB2_CLOSURE_ARTIFACT_RELOCATABLE_MODULE,
+        .flags = KB2_CLOSURE_ARTIFACT_FLAG_ROOT,
+        .content_size = 64,
+        .namespace_name = TEST_STRING("test_module"),
+        .init_symbol = TEST_STRING("test_init"),
+        .quiesce_symbol = TEST_STRING("test_quiesce"),
+        .cleanup_symbol = TEST_STRING("test_cleanup"),
+    };
+    kb2_closure_manifest_source_t source = {
+        .artifacts = &artifact,
+        .artifact_count = 1,
+    };
+    kb2_closure_manifest_artifact_t decoded_artifact;
+    kb2_closure_manifest_t manifest;
+    uint8_t buffer[512];
+    size_t encoded_size;
+
+    memset(artifact.content_digest, 0x5a, sizeof(artifact.content_digest));
+    CHECK(kb2_closure_manifest_encoded_size(&source, &encoded_size) == KB2_PROTOCOL_OK);
+    CHECK(encoded_size < sizeof(buffer));
+    CHECK(kb2_closure_manifest_encode(
+              buffer, sizeof(buffer), &encoded_size, &source) == KB2_PROTOCOL_OK);
+    CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) == KB2_PROTOCOL_OK);
+    CHECK(kb2_closure_manifest_artifact_count(&manifest) == 1);
+    CHECK(kb2_closure_manifest_artifact(&manifest, 0, &decoded_artifact) ==
+          KB2_PROTOCOL_OK);
+    CHECK(decoded_artifact.node_id == artifact.node_id);
+    CHECK(decoded_artifact.content_size == artifact.content_size);
+    CHECK(decoded_artifact.namespace_name.length == artifact.namespace_name.length);
+    CHECK(memcmp(decoded_artifact.namespace_name.data,
+                 artifact.namespace_name.data,
+                 artifact.namespace_name.length) == 0);
+
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_SCHEMA_DIGEST_OFFSET] ^= 1u;
+    CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) ==
+          KB2_PROTOCOL_SCHEMA_MISMATCH);
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_SCHEMA_DIGEST_OFFSET] ^= 1u;
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_RESERVED_OFFSET] = 1;
+    CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) ==
+          KB2_PROTOCOL_MALFORMED);
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_RESERVED_OFFSET] = 0;
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_SIZE +
+           KB2_CLOSURE_ARTIFACT_DESCRIPTOR_FLAGS_OFFSET] = 0;
+    CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) ==
+          KB2_PROTOCOL_MALFORMED);
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_SIZE +
+           KB2_CLOSURE_ARTIFACT_DESCRIPTOR_FLAGS_OFFSET] =
+        KB2_CLOSURE_ARTIFACT_FLAG_ROOT;
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_SIZE +
+           KB2_CLOSURE_ARTIFACT_DESCRIPTOR_NAMESPACE_LENGTH_OFFSET] = 0;
+    CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) ==
+          KB2_PROTOCOL_MALFORMED);
+    return 0;
+}
+
 int main(void) {
     CHECK(test_channel_round_trip() == 0);
     CHECK(test_channel_rejection() == 0);
     CHECK(test_message_envelope() == 0);
+    CHECK(test_sha256() == 0);
+    CHECK(test_closure_manifest() == 0);
     return 0;
 }

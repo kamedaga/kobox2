@@ -10,15 +10,19 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define KB2_TEST_BOOTSTRAP_SIZE 64u
+#define KB2_TEST_BOOTSTRAP_SIZE 128u
 #define KB2_TEST_BOOTSTRAP_MAGIC "kb2boot\0"
 #define KB2_TEST_BOOTSTRAP_MAGIC_SIZE 8u
 #define KB2_TEST_BOOTSTRAP_GENERATION_OFFSET 8u
 #define KB2_TEST_BOOTSTRAP_SHARED_SIZE_OFFSET 16u
-#define KB2_TEST_BOOTSTRAP_DESCRIPTOR_SIZE_OFFSET 24u
-#define KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET 28u
-#define KB2_TEST_BOOTSTRAP_NOTIFICATION_IDS_OFFSET 32u
-#define KB2_TEST_BOOTSTRAP_RESERVED_OFFSET 48u
+#define KB2_TEST_BOOTSTRAP_MANIFEST_SIZE_OFFSET 24u
+#define KB2_TEST_BOOTSTRAP_DESCRIPTOR_SIZE_OFFSET 32u
+#define KB2_TEST_BOOTSTRAP_ARTIFACT_COUNT_OFFSET 36u
+#define KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET 40u
+#define KB2_TEST_BOOTSTRAP_DESCRIPTOR_COUNT_OFFSET 44u
+#define KB2_TEST_BOOTSTRAP_MANIFEST_DIGEST_OFFSET 48u
+#define KB2_TEST_BOOTSTRAP_NOTIFICATION_IDS_OFFSET 80u
+#define KB2_TEST_BOOTSTRAP_RESERVED_OFFSET 96u
 
 static void kb2_test_store_u32(uint8_t *destination, uint32_t value) {
     destination[0] = (uint8_t)value;
@@ -72,12 +76,22 @@ static int kb2_test_notification_ids_valid(const uint32_t *notification_ids) {
     return 1;
 }
 
+size_t kb2_test_bootstrap_descriptor_count(const kb2_test_bootstrap_t *bootstrap) {
+    if (bootstrap == NULL || bootstrap->artifact_count == 0 ||
+        bootstrap->artifact_count > KB2_TEST_MAX_ARTIFACT_COUNT ||
+        bootstrap->notification_count != KB2_TEST_NOTIFICATION_COUNT) {
+        return 0;
+    }
+    return KB2_TEST_BASE_TRANSFER_FD_COUNT + bootstrap->artifact_count +
+           bootstrap->notification_count;
+}
+
 int kb2_test_send_bootstrap(int socket_fd,
                             const kb2_test_bootstrap_t *bootstrap,
                             const int *file_descriptors,
                             size_t file_descriptor_count) {
     uint8_t message[KB2_TEST_BOOTSTRAP_SIZE] = {0};
-    uint8_t control[CMSG_SPACE(sizeof(int) * KB2_TEST_TRANSFER_FD_COUNT)] = {0};
+    uint8_t control[CMSG_SPACE(sizeof(int) * KB2_TEST_MAX_TRANSFER_FD_COUNT)] = {0};
     struct iovec vector = {
         .iov_base = message,
         .iov_len = sizeof(message),
@@ -93,8 +107,9 @@ int kb2_test_send_bootstrap(int socket_fd,
     ssize_t sent;
 
     if (socket_fd < 0 || bootstrap == NULL || file_descriptors == NULL ||
-        file_descriptor_count != KB2_TEST_TRANSFER_FD_COUNT || bootstrap->generation == 0 ||
-        bootstrap->shared_memory_size == 0 || bootstrap->channel_descriptor_size == 0 ||
+        file_descriptor_count != kb2_test_bootstrap_descriptor_count(bootstrap) ||
+        bootstrap->generation == 0 || bootstrap->shared_memory_size == 0 ||
+        bootstrap->manifest_size == 0 || bootstrap->channel_descriptor_size == 0 ||
         bootstrap->channel_descriptor_size > bootstrap->shared_memory_size ||
         !kb2_test_notification_ids_valid(bootstrap->notification_ids)) {
         return 0;
@@ -104,15 +119,25 @@ int kb2_test_send_bootstrap(int socket_fd,
             return 0;
         }
     }
+    header.msg_controllen = CMSG_SPACE(sizeof(int) * file_descriptor_count);
 
     memcpy(message, KB2_TEST_BOOTSTRAP_MAGIC, KB2_TEST_BOOTSTRAP_MAGIC_SIZE);
     kb2_test_store_u64(message + KB2_TEST_BOOTSTRAP_GENERATION_OFFSET, bootstrap->generation);
     kb2_test_store_u64(message + KB2_TEST_BOOTSTRAP_SHARED_SIZE_OFFSET,
                        bootstrap->shared_memory_size);
+    kb2_test_store_u64(message + KB2_TEST_BOOTSTRAP_MANIFEST_SIZE_OFFSET,
+                       bootstrap->manifest_size);
     kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_SIZE_OFFSET,
                        bootstrap->channel_descriptor_size);
+    kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_ARTIFACT_COUNT_OFFSET,
+                       bootstrap->artifact_count);
     kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET,
-                       KB2_TEST_NOTIFICATION_COUNT);
+                       bootstrap->notification_count);
+    kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_COUNT_OFFSET,
+                       (uint32_t)file_descriptor_count);
+    memcpy(message + KB2_TEST_BOOTSTRAP_MANIFEST_DIGEST_OFFSET,
+           bootstrap->manifest_digest,
+           sizeof(bootstrap->manifest_digest));
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {
         kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_NOTIFICATION_IDS_OFFSET + index * 4u,
                            bootstrap->notification_ids[index]);
@@ -149,7 +174,7 @@ int kb2_test_receive_bootstrap(int socket_fd,
                                size_t file_descriptor_capacity,
                                size_t *file_descriptor_count_out) {
     uint8_t message[KB2_TEST_BOOTSTRAP_SIZE];
-    uint8_t control[CMSG_SPACE(sizeof(int) * KB2_TEST_TRANSFER_FD_COUNT)] = {0};
+    uint8_t control[CMSG_SPACE(sizeof(int) * KB2_TEST_MAX_TRANSFER_FD_COUNT)] = {0};
     struct iovec vector = {
         .iov_base = message,
         .iov_len = sizeof(message),
@@ -167,8 +192,8 @@ int kb2_test_receive_bootstrap(int socket_fd,
     ssize_t received;
 
     if (socket_fd < 0 || bootstrap_out == NULL || file_descriptors_out == NULL ||
-        file_descriptor_count_out == NULL ||
-        file_descriptor_capacity < KB2_TEST_TRANSFER_FD_COUNT) {
+        file_descriptor_count_out == NULL || file_descriptor_capacity == 0 ||
+        file_descriptor_capacity > KB2_TEST_MAX_TRANSFER_FD_COUNT) {
         return 0;
     }
     for (index = 0; index < file_descriptor_capacity; ++index) {
@@ -206,7 +231,6 @@ int kb2_test_receive_bootstrap(int socket_fd,
     if (received != (ssize_t)sizeof(message) ||
         (header.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) != 0 ||
         memcmp(message, KB2_TEST_BOOTSTRAP_MAGIC, KB2_TEST_BOOTSTRAP_MAGIC_SIZE) != 0 ||
-        descriptor_count != KB2_TEST_TRANSFER_FD_COUNT ||
         CMSG_NXTHDR(&header, control_header) != NULL) {
         goto invalid;
     }
@@ -215,13 +239,24 @@ int kb2_test_receive_bootstrap(int socket_fd,
         kb2_test_load_u64(message + KB2_TEST_BOOTSTRAP_GENERATION_OFFSET);
     bootstrap_out->shared_memory_size =
         kb2_test_load_u64(message + KB2_TEST_BOOTSTRAP_SHARED_SIZE_OFFSET);
+    bootstrap_out->manifest_size =
+        kb2_test_load_u64(message + KB2_TEST_BOOTSTRAP_MANIFEST_SIZE_OFFSET);
     bootstrap_out->channel_descriptor_size =
         kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_SIZE_OFFSET);
+    bootstrap_out->artifact_count =
+        kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_ARTIFACT_COUNT_OFFSET);
+    bootstrap_out->notification_count =
+        kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET);
+    memcpy(bootstrap_out->manifest_digest,
+           message + KB2_TEST_BOOTSTRAP_MANIFEST_DIGEST_OFFSET,
+           sizeof(bootstrap_out->manifest_digest));
     if (bootstrap_out->generation == 0 || bootstrap_out->shared_memory_size == 0 ||
+        bootstrap_out->manifest_size == 0 ||
         bootstrap_out->channel_descriptor_size == 0 ||
         bootstrap_out->channel_descriptor_size > bootstrap_out->shared_memory_size ||
-        kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET) !=
-            KB2_TEST_NOTIFICATION_COUNT) {
+        descriptor_count != kb2_test_bootstrap_descriptor_count(bootstrap_out) ||
+        descriptor_count !=
+            kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_COUNT_OFFSET)) {
         goto invalid;
     }
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {

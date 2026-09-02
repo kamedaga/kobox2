@@ -3,7 +3,7 @@
 ## controller
 
 kobox2 controllerは、PachaOSの`gpud`などhost側serviceが利用するlibraryです。
-lifecycle state、opaqueなrole manifestの検証、channel確立、上限付きresource transfer、
+lifecycle state、不変なrole closureの検証、channel確立、上限付きresource transfer、
 restart generationの監督を担当します。
 
 device data pathは所有せず、Linux APIも解釈しません。

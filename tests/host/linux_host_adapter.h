@@ -15,6 +15,7 @@
 
 typedef struct kb2_test_host {
     const char *sandbox_path;
+    const char *artifact_paths[2];
     void *shared_memory;
     size_t shared_memory_size;
     size_t channel_descriptor_size;
@@ -22,6 +23,12 @@ typedef struct kb2_test_host {
     int process_fd;
     int bootstrap_socket;
     int shared_memory_fd;
+    int manifest_fd;
+    int artifact_fds[2];
+    uint64_t artifact_sizes[2];
+    uint8_t artifact_digests[2][32];
+    uint64_t manifest_size;
+    uint8_t manifest_digest[32];
     int notification_fds[KB2_TEST_NOTIFICATION_COUNT];
     uint32_t notification_ids[KB2_TEST_NOTIFICATION_COUNT];
     kb2_protocol_queue_t queues[2];
@@ -39,10 +46,13 @@ typedef struct kb2_test_host {
     int resources_transferred;
     int resources_revoked;
     int abnormal_exit_allowed;
-    int reap_after_reset;
+    int process_exited;
 } kb2_test_host_t;
 
-int kb2_test_host_initialize(kb2_test_host_t *host, const char *sandbox_path);
+int kb2_test_host_initialize(kb2_test_host_t *host,
+                             const char *sandbox_path,
+                             const char *core_path,
+                             const char *module_path);
 void kb2_test_host_destroy(kb2_test_host_t *host);
 kb2_status_t kb2_test_host_execute(kb2_test_host_t *host,
                                    const kb2_action_t *action,

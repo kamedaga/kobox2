@@ -19,14 +19,16 @@ At most one action is outstanding. The host reports its completion before
 delivering another command or event; failed execution is an explicit result.
 
 Start establishes fresh resources and a new generation before the sandbox
-becomes running. Stop and restart order revocation, manifest-required resource
-reset, process termination, resource release, and the next start. Results from
+becomes running. Normal stop and restart quiesce the closure and confirm process
+exit before revocation, reset, reap, resource release, and the next start. Fault
+cleanup terminates the process before the same resource cleanup. Results from
 another generation are rejected.
 
 ## Interface
 
-- A launch description contains opaque manifest and profile digests, resource
-  limits, capabilities, and channel descriptions.
+- A launch description contains an immutable validated closure, profile and
+  channel digests, and resource limits. Reset flags are derived from closure
+  resource policy.
 - Events report action completion, sandbox handshake, process exit, protocol
   fault, and host stop or restart requests.
 - Actions identify their type, generation, token, and bounded arguments. Native
@@ -44,7 +46,8 @@ The controller API, host contract, transport, and role protocols are one `dev`
 interface. They have no ABI version number or compatibility guarantee. A build
 uses matching source revisions and schema digests across all components.
 
-The first ABI number is assigned only by an explicit freeze after the
-conformance fixture passes.
+An ABI number is assigned only by an explicit freeze after the conformance
+fixture passes.
 
 The action contract is specified in [host-actions.md](./host-actions.md).
+The closure contract is specified in [module-closure.md](./module-closure.md).

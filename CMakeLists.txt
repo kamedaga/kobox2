@@ -13,9 +13,14 @@ add_custom_target(
     COMMENT "Checking generated protocol layout"
 )
 
-add_library(kobox2 STATIC src/controller/controller.c)
+add_library(kobox2 STATIC src/closure.c src/controller/controller.c)
 add_library(kobox2::kobox2 ALIAS kobox2)
-add_library(kobox2_protocol STATIC protocol/src/protocol.c)
+add_library(
+    kobox2_protocol STATIC
+    protocol/src/closure_manifest.c
+    protocol/src/protocol.c
+    protocol/src/sha256.c
+)
 add_library(kobox2::protocol ALIAS kobox2_protocol)
 add_dependencies(kobox2_protocol kobox2_protocol_check)
 
@@ -60,8 +65,13 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_library(kobox2_test_closure STATIC tests/test_closure.c)
+    target_link_libraries(kobox2_test_closure PUBLIC kobox2::kobox2)
+    target_include_directories(kobox2_test_closure PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     add_executable(kobox2_controller_test tests/controller_test.c)
-    target_link_libraries(kobox2_controller_test PRIVATE kobox2::kobox2)
+    target_link_libraries(kobox2_controller_test PRIVATE kobox2_test_closure)
+    add_executable(kobox2_closure_test tests/closure_test.c)
+    target_link_libraries(kobox2_closure_test PRIVATE kobox2::kobox2)
     add_executable(kobox2_protocol_test tests/protocol_test.c)
     target_link_libraries(kobox2_protocol_test PRIVATE kobox2::protocol)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -91,7 +101,7 @@ if(BUILD_TESTING)
         )
         target_link_libraries(
             kobox2_host_integration_test
-            PRIVATE kobox2::kobox2 kobox2_test_transport
+            PRIVATE kobox2_test_closure kobox2_test_transport
         )
         add_subdirectory(linux-sandbox/kobox)
         add_executable(
@@ -102,12 +112,20 @@ if(BUILD_TESTING)
         )
         target_link_libraries(
             kobox2_fixture_integration_test
-            PRIVATE kobox2::kobox2 kobox2_test_transport
+            PRIVATE kobox2_test_closure kobox2_test_transport
+        )
+        add_dependencies(
+            kobox2_host_integration_test kobox_fixture_core kobox_fixture_module
+        )
+        add_dependencies(
+            kobox2_fixture_integration_test kobox_fixture_core kobox_fixture_module
         )
     endif()
 
     if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
         target_compile_options(kobox2_controller_test PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(kobox2_closure_test PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(kobox2_test_closure PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(kobox2_protocol_test PRIVATE -Wall -Wextra -Wpedantic)
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             target_compile_options(kobox2_test_transport PRIVATE -Wall -Wextra -Wpedantic)
@@ -120,6 +138,8 @@ if(BUILD_TESTING)
         endif()
     elseif(MSVC)
         target_compile_options(kobox2_controller_test PRIVATE /W4)
+        target_compile_options(kobox2_closure_test PRIVATE /W4)
+        target_compile_options(kobox2_test_closure PRIVATE /W4)
         target_compile_options(kobox2_protocol_test PRIVATE /W4)
     endif()
 
@@ -129,6 +149,15 @@ if(BUILD_TESTING)
             PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
         )
         target_link_options(kobox2_controller_test PRIVATE -fsanitize=address,undefined)
+        target_compile_options(
+            kobox2_closure_test
+            PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
+        )
+        target_link_options(kobox2_closure_test PRIVATE -fsanitize=address,undefined)
+        target_compile_options(
+            kobox2_test_closure
+            PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
+        )
         target_compile_options(
             kobox2_protocol_test
             PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
@@ -165,17 +194,26 @@ if(BUILD_TESTING)
     endif()
 
     add_test(NAME kobox2.controller COMMAND kobox2_controller_test)
+    add_test(NAME kobox2.closure COMMAND kobox2_closure_test)
     add_test(NAME kobox2.protocol COMMAND kobox2_protocol_test)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_test(NAME kobox2.virtqueue COMMAND kobox2_virtqueue_test)
         add_test(
             NAME kobox2.host_process
-            COMMAND kobox2_host_integration_test $<TARGET_FILE:kobox2_test_sandbox>
+            COMMAND
+                kobox2_host_integration_test
+                $<TARGET_FILE:kobox2_test_sandbox>
+                $<TARGET_FILE:kobox_fixture_core>
+                "${KOBOX_FIXTURE_MODULE}"
         )
         set_tests_properties(kobox2.host_process PROPERTIES TIMEOUT 15)
         add_test(
             NAME kobox2.fixture_process
-            COMMAND kobox2_fixture_integration_test $<TARGET_FILE:kobox_fixture_sandbox>
+            COMMAND
+                kobox2_fixture_integration_test
+                $<TARGET_FILE:kobox_fixture_sandbox>
+                $<TARGET_FILE:kobox_fixture_core>
+                "${KOBOX_FIXTURE_MODULE}"
         )
         set_tests_properties(kobox2.fixture_process PROPERTIES TIMEOUT 15)
     endif()
@@ -188,8 +226,13 @@ install(
     RUNTIME DESTINATION bin
 )
 install(FILES include/kobox2/controller.h DESTINATION include/kobox2)
+install(FILES include/kobox2/closure.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/protocol.h DESTINATION include/kobox2)
+install(FILES protocol/include/kobox2/closure_manifest.h DESTINATION include/kobox2)
+install(FILES protocol/include/kobox2/sha256.h DESTINATION include/kobox2)
 install(
-    FILES protocol/generated/include/kobox2/protocol_layout.h
+    FILES
+        protocol/generated/include/kobox2/closure_layout.h
+        protocol/generated/include/kobox2/protocol_layout.h
     DESTINATION include/kobox2
 )

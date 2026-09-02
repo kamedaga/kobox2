@@ -1,0 +1,139 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.closure",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "constants": {
+    "max_artifacts": 4096,
+    "max_dependencies": 65536,
+    "max_exports": 65536,
+    "max_imports": 65536,
+    "max_resources": 16384,
+    "max_resource_bindings": 65536,
+    "artifact_shared_provider": 0,
+    "artifact_relocatable_module": 1,
+    "artifact_flag_root": 1,
+    "symbol_function": 0,
+    "symbol_object": 1,
+    "import_flag_optional": 1,
+    "resource_memory": 0,
+    "resource_device": 1,
+    "resource_storage": 2,
+    "resource_notification": 3,
+    "resource_channel": 4,
+    "resource_flag_required": 1,
+    "resource_flag_shared": 2,
+    "resource_flag_reset_required": 4,
+    "memory_right_read": 1,
+    "memory_right_write": 2,
+    "memory_right_map": 4,
+    "memory_right_dma": 8,
+    "device_right_command": 1,
+    "device_right_map": 2,
+    "device_right_dma": 4,
+    "storage_right_read_blocks": 1,
+    "storage_right_write_blocks": 2,
+    "storage_right_flush": 4,
+    "storage_right_discard": 8,
+    "notification_right_wait": 1,
+    "notification_right_signal": 2,
+    "channel_right_send": 1,
+    "channel_right_receive": 2
+  },
+  "structures": {
+    "manifest_header": {
+      "size": 128,
+      "fields": [
+        { "name": "total_size", "type": "u32", "offset": 0 },
+        { "name": "abi_identity", "type": "u8[4]", "offset": 4 },
+        { "name": "schema_digest", "type": "u8[32]", "offset": 8 },
+        { "name": "artifact_count", "type": "u32", "offset": 40 },
+        { "name": "dependency_count", "type": "u32", "offset": 44 },
+        { "name": "export_count", "type": "u32", "offset": 48 },
+        { "name": "import_count", "type": "u32", "offset": 52 },
+        { "name": "resource_count", "type": "u32", "offset": 56 },
+        { "name": "resource_binding_count", "type": "u32", "offset": 60 },
+        { "name": "artifact_table_offset", "type": "u32", "offset": 64 },
+        { "name": "dependency_table_offset", "type": "u32", "offset": 68 },
+        { "name": "export_table_offset", "type": "u32", "offset": 72 },
+        { "name": "import_table_offset", "type": "u32", "offset": 76 },
+        { "name": "resource_table_offset", "type": "u32", "offset": 80 },
+        { "name": "resource_binding_table_offset", "type": "u32", "offset": 84 },
+        { "name": "string_table_offset", "type": "u32", "offset": 88 },
+        { "name": "string_table_size", "type": "u32", "offset": 92 },
+        { "name": "reserved", "type": "u8[32]", "offset": 96 }
+      ]
+    },
+    "artifact_descriptor": {
+      "size": 96,
+      "fields": [
+        { "name": "node_id", "type": "u32", "offset": 0 },
+        { "name": "kind", "type": "u32", "offset": 4 },
+        { "name": "flags", "type": "u32", "offset": 8 },
+        { "name": "reserved_0", "type": "u32", "offset": 12 },
+        { "name": "content_size", "type": "u64", "offset": 16 },
+        { "name": "content_digest", "type": "u8[32]", "offset": 24 },
+        { "name": "namespace_offset", "type": "u32", "offset": 56 },
+        { "name": "namespace_length", "type": "u32", "offset": 60 },
+        { "name": "init_offset", "type": "u32", "offset": 64 },
+        { "name": "init_length", "type": "u32", "offset": 68 },
+        { "name": "quiesce_offset", "type": "u32", "offset": 72 },
+        { "name": "quiesce_length", "type": "u32", "offset": 76 },
+        { "name": "cleanup_offset", "type": "u32", "offset": 80 },
+        { "name": "cleanup_length", "type": "u32", "offset": 84 },
+        { "name": "reserved_1", "type": "u64", "offset": 88 }
+      ]
+    },
+    "dependency_descriptor": {
+      "size": 8,
+      "fields": [
+        { "name": "consumer_node_id", "type": "u32", "offset": 0 },
+        { "name": "provider_node_id", "type": "u32", "offset": 4 }
+      ]
+    },
+    "symbol_descriptor": {
+      "size": 16,
+      "fields": [
+        { "name": "node_id", "type": "u32", "offset": 0 },
+        { "name": "kind", "type": "u32", "offset": 4 },
+        { "name": "name_offset", "type": "u32", "offset": 8 },
+        { "name": "name_length", "type": "u32", "offset": 12 }
+      ]
+    },
+    "import_descriptor": {
+      "size": 32,
+      "fields": [
+        { "name": "consumer_node_id", "type": "u32", "offset": 0 },
+        { "name": "provider_node_id", "type": "u32", "offset": 4 },
+        { "name": "kind", "type": "u32", "offset": 8 },
+        { "name": "flags", "type": "u32", "offset": 12 },
+        { "name": "consumer_name_offset", "type": "u32", "offset": 16 },
+        { "name": "consumer_name_length", "type": "u32", "offset": 20 },
+        { "name": "provider_name_offset", "type": "u32", "offset": 24 },
+        { "name": "provider_name_length", "type": "u32", "offset": 28 }
+      ]
+    },
+    "resource_descriptor": {
+      "size": 40,
+      "fields": [
+        { "name": "slot_id", "type": "u32", "offset": 0 },
+        { "name": "type", "type": "u32", "offset": 4 },
+        { "name": "minimum_count", "type": "u32", "offset": 8 },
+        { "name": "maximum_count", "type": "u32", "offset": 12 },
+        { "name": "required_rights", "type": "u64", "offset": 16 },
+        { "name": "maximum_rights", "type": "u64", "offset": 24 },
+        { "name": "flags", "type": "u32", "offset": 32 },
+        { "name": "reserved", "type": "u32", "offset": 36 }
+      ]
+    },
+    "resource_binding": {
+      "size": 8,
+      "fields": [
+        { "name": "slot_id", "type": "u32", "offset": 0 },
+        { "name": "node_id", "type": "u32", "offset": 4 }
+      ]
+    }
+  }
+}

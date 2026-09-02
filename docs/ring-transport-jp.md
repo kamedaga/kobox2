@@ -72,7 +72,7 @@ used lengthにはwritable descriptorへ書いたbyte数を記録します。
   size、ABI identity、flags、reserved fieldを検証します。検証failureではchannelを
   `FAULTED`へ移し、control faultを発行します。
 - 各sandbox generationへ新しいvirtqueue memory、channel ID、address registration、
-  notification endpointを割り当てます。restartはcapability revoke、device reset、
-  process終了、割り当て、転送、control handshakeの順です。
+  notification endpointを割り当てます。restartはprocess終了、capability revoke、
+  device reset、reap、割り当て、転送、control handshakeの順です。
 - controllerはmanagement channelを保持し、channel確立完了時にdata channelの所有権を
   clientとsandboxへ移します。

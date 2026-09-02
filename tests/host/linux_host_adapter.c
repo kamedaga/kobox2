@@ -5,9 +5,13 @@
 
 #include "linux_host_adapter.h"
 
+#include <kobox2/closure.h>
+#include <kobox2/closure_manifest.h>
 #include <kobox2/protocol.h>
+#include <kobox2/sha256.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <poll.h>
 #include <signal.h>
@@ -19,6 +23,7 @@
 #include <sys/mman.h>
 #include <sys/pidfd.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -27,6 +32,7 @@ extern char **environ;
 
 #define KB2_TEST_MINIMUM_SHARED_MEMORY_SIZE 16384u
 #define KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS 5000
+#define KB2_TEST_ARTIFACT_COUNT 2u
 
 static void kb2_test_close(int *file_descriptor) {
     if (*file_descriptor >= 0) {
@@ -45,6 +51,14 @@ static void kb2_test_host_release_local_resources(kb2_test_host_t *host) {
     host->shared_memory_size = 0;
     host->channel_descriptor_size = 0;
     kb2_test_close(&host->shared_memory_fd);
+    kb2_test_close(&host->manifest_fd);
+    for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
+        kb2_test_close(&host->artifact_fds[index]);
+        host->artifact_sizes[index] = 0;
+        memset(host->artifact_digests[index], 0, sizeof(host->artifact_digests[index]));
+    }
+    host->manifest_size = 0;
+    memset(host->manifest_digest, 0, sizeof(host->manifest_digest));
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {
         kb2_test_close(&host->notification_fds[index]);
         host->notification_ids[index] = 0;
@@ -56,7 +70,7 @@ static void kb2_test_host_release_local_resources(kb2_test_host_t *host) {
     host->resources_transferred = 0;
     host->resources_revoked = 0;
     host->abnormal_exit_allowed = 0;
-    host->reap_after_reset = 0;
+    host->process_exited = 0;
 }
 
 static int kb2_test_wait_process(pid_t process_id,
@@ -100,21 +114,242 @@ static int kb2_test_wait_process_fd(int process_fd, int timeout_milliseconds) {
     return result == 1 && (descriptor.revents & POLLIN) != 0;
 }
 
-int kb2_test_host_initialize(kb2_test_host_t *host, const char *sandbox_path) {
+static int kb2_test_write_all(int descriptor, const void *data, size_t size) {
+    const uint8_t *bytes = data;
+
+    while (size != 0) {
+        ssize_t written;
+
+        do {
+            written = write(descriptor, bytes, size);
+        } while (written < 0 && errno == EINTR);
+        if (written <= 0) {
+            return 0;
+        }
+        bytes += (size_t)written;
+        size -= (size_t)written;
+    }
+    return 1;
+}
+
+static int kb2_test_copy_artifact(const char *path,
+                                  const char *name,
+                                  int *descriptor_out,
+                                  uint64_t *size_out,
+                                  uint8_t digest_out[KB2_SHA256_DIGEST_SIZE]) {
+    kb2_sha256_context_t digest_context;
+    struct stat status;
+    uint8_t buffer[16384];
+    int source = -1;
+    int destination = -1;
+    int result = 0;
+
+    source = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    if (source < 0 || fstat(source, &status) != 0 || !S_ISREG(status.st_mode) ||
+        status.st_size <= 0 || (uint64_t)status.st_size > SIZE_MAX) {
+        goto finish;
+    }
+    destination = memfd_create(name, MFD_CLOEXEC | MFD_ALLOW_SEALING);
+    if (destination < 0 || ftruncate(destination, status.st_size) != 0) {
+        goto finish;
+    }
+    kb2_sha256_initialize(&digest_context);
+    for (;;) {
+        ssize_t bytes_read;
+
+        do {
+            bytes_read = read(source, buffer, sizeof(buffer));
+        } while (bytes_read < 0 && errno == EINTR);
+        if (bytes_read < 0) {
+            goto finish;
+        }
+        if (bytes_read == 0) {
+            break;
+        }
+        kb2_sha256_update(&digest_context, buffer, (size_t)bytes_read);
+        if (!kb2_test_write_all(destination, buffer, (size_t)bytes_read)) {
+            goto finish;
+        }
+    }
+    kb2_sha256_finish(&digest_context, digest_out);
+    if (lseek(destination, 0, SEEK_SET) != 0 ||
+        fcntl(destination,
+              F_ADD_SEALS,
+              F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0) {
+        goto finish;
+    }
+    *descriptor_out = destination;
+    *size_out = (uint64_t)status.st_size;
+    destination = -1;
+    result = 1;
+
+finish:
+    if (source >= 0) {
+        close(source);
+    }
+    if (destination >= 0) {
+        close(destination);
+    }
+    return result;
+}
+
+#define KB2_TEST_STRING(value) {(value), (uint32_t)(sizeof(value) - 1u)}
+
+static int kb2_test_make_manifest(kb2_test_host_t *host) {
+    kb2_closure_manifest_artifact_t artifacts[KB2_TEST_ARTIFACT_COUNT] = {
+        {
+            .node_id = 1,
+            .kind = KB2_CLOSURE_ARTIFACT_SHARED_PROVIDER,
+            .namespace_name = KB2_TEST_STRING("fixture_core"),
+            .init_symbol = KB2_TEST_STRING("kobox_fixture_core_init"),
+            .quiesce_symbol = KB2_TEST_STRING("kobox_fixture_core_quiesce"),
+            .cleanup_symbol = KB2_TEST_STRING("kobox_fixture_core_cleanup"),
+        },
+        {
+            .node_id = 2,
+            .kind = KB2_CLOSURE_ARTIFACT_RELOCATABLE_MODULE,
+            .flags = KB2_CLOSURE_ARTIFACT_FLAG_ROOT,
+            .namespace_name = KB2_TEST_STRING("fixture_module"),
+            .init_symbol = KB2_TEST_STRING("kobox_fixture_module_init"),
+            .quiesce_symbol = KB2_TEST_STRING("kobox_fixture_module_quiesce"),
+            .cleanup_symbol = KB2_TEST_STRING("kobox_fixture_module_cleanup"),
+        },
+    };
+    const kb2_closure_manifest_dependency_t dependencies[] = {{2, 1}};
+    const kb2_closure_manifest_symbol_t exports[] = {
+        {1, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_core_cleanup")},
+        {1, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_core_get_ops")},
+        {1, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_core_init")},
+        {1, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_core_quiesce")},
+        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_module_cleanup")},
+        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_module_init")},
+        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_module_quiesce")},
+        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_module_run")},
+    };
+    const kb2_closure_manifest_import_t imports[] = {
+        {2,
+         1,
+         KB2_CLOSURE_SYMBOL_FUNCTION,
+         0,
+         KB2_TEST_STRING("kobox_fixture_core_get_ops"),
+         KB2_TEST_STRING("kobox_fixture_core_get_ops")},
+    };
+    const kb2_closure_manifest_resource_t resources[] = {
+        {1,
+         KB2_RESOURCE_CHANNEL,
+         1,
+         1,
+         KB2_CHANNEL_RIGHT_SEND | KB2_CHANNEL_RIGHT_RECEIVE,
+         KB2_CHANNEL_RIGHT_SEND | KB2_CHANNEL_RIGHT_RECEIVE,
+         KB2_RESOURCE_REQUIRED | KB2_RESOURCE_RESET_REQUIRED},
+    };
+    const kb2_closure_manifest_binding_t bindings[] = {{1, 2}};
+    const kb2_closure_manifest_source_t source = {
+        .artifacts = artifacts,
+        .artifact_count = sizeof(artifacts) / sizeof(artifacts[0]),
+        .dependencies = dependencies,
+        .dependency_count = sizeof(dependencies) / sizeof(dependencies[0]),
+        .exports = exports,
+        .export_count = sizeof(exports) / sizeof(exports[0]),
+        .imports = imports,
+        .import_count = sizeof(imports) / sizeof(imports[0]),
+        .resources = resources,
+        .resource_count = sizeof(resources) / sizeof(resources[0]),
+        .bindings = bindings,
+        .binding_count = sizeof(bindings) / sizeof(bindings[0]),
+    };
+    uint8_t *encoded = NULL;
+    kb2_closure_manifest_t decoded;
+    size_t encoded_size;
+    size_t actual_size;
+    size_t index;
+    int descriptor = -1;
+    int result = 0;
+
+    for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
+        artifacts[index].content_size = host->artifact_sizes[index];
+        memcpy(artifacts[index].content_digest,
+               host->artifact_digests[index],
+               sizeof(artifacts[index].content_digest));
+    }
+    if (kb2_closure_manifest_encoded_size(&source, &encoded_size) != KB2_PROTOCOL_OK) {
+        goto finish;
+    }
+    encoded = malloc(encoded_size);
+    if (encoded == NULL ||
+        kb2_closure_manifest_encode(encoded, encoded_size, &actual_size, &source) !=
+            KB2_PROTOCOL_OK ||
+        actual_size != encoded_size ||
+        kb2_closure_manifest_decode(encoded, encoded_size, &decoded) != KB2_PROTOCOL_OK ||
+        kb2_closure_manifest_artifact_count(&decoded) != KB2_TEST_ARTIFACT_COUNT) {
+        goto finish;
+    }
+    kb2_sha256(encoded, encoded_size, host->manifest_digest);
+    descriptor = memfd_create("kobox2-test-manifest", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+    if (descriptor < 0 || ftruncate(descriptor, (off_t)encoded_size) != 0 ||
+        !kb2_test_write_all(descriptor, encoded, encoded_size) || lseek(descriptor, 0, SEEK_SET) != 0 ||
+        fcntl(descriptor,
+              F_ADD_SEALS,
+              F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0) {
+        goto finish;
+    }
+    host->manifest_fd = descriptor;
+    host->manifest_size = encoded_size;
+    descriptor = -1;
+    result = 1;
+
+finish:
+    free(encoded);
+    if (descriptor >= 0) {
+        close(descriptor);
+    }
+    return result;
+}
+
+static int kb2_test_make_closure_package(kb2_test_host_t *host) {
     size_t index;
 
-    if (host == NULL || sandbox_path == NULL || sandbox_path[0] == '\0') {
+    for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
+        if (!kb2_test_copy_artifact(host->artifact_paths[index],
+                                    index == 0 ? "kobox2-test-core" : "kobox2-test-module",
+                                    &host->artifact_fds[index],
+                                    &host->artifact_sizes[index],
+                                    host->artifact_digests[index])) {
+            return 0;
+        }
+    }
+    return kb2_test_make_manifest(host);
+}
+
+int kb2_test_host_initialize(kb2_test_host_t *host,
+                             const char *sandbox_path,
+                             const char *core_path,
+                             const char *module_path) {
+    size_t index;
+
+    if (host == NULL || sandbox_path == NULL || sandbox_path[0] == '\0' || core_path == NULL ||
+        core_path[0] == '\0' || module_path == NULL || module_path[0] == '\0') {
         return 0;
     }
     memset(host, 0, sizeof(*host));
     host->sandbox_path = sandbox_path;
+    host->artifact_paths[0] = core_path;
+    host->artifact_paths[1] = module_path;
     host->shared_memory = MAP_FAILED;
     host->process_id = -1;
     host->process_fd = -1;
     host->bootstrap_socket = -1;
     host->shared_memory_fd = -1;
+    host->manifest_fd = -1;
+    for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
+        host->artifact_fds[index] = -1;
+    }
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {
         host->notification_fds[index] = -1;
+    }
+    if (!kb2_test_make_closure_package(host)) {
+        kb2_test_host_release_local_resources(host);
+        return 0;
     }
     return 1;
 }
@@ -262,11 +497,23 @@ static kb2_status_t kb2_test_host_make_channel(kb2_test_host_t *host,
 static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
                                            const kb2_action_t *action,
                                            uint64_t *resource_set_id_out) {
+    const kb2_closure_t *closure = kb2_action_closure(action);
     uint8_t configured_digest[KB2_DIGEST_SIZE];
     uint8_t protocol_digest[KB2_DIGEST_SIZE];
+    kb2_resource_type_t resource_type;
+    uint64_t required_rights;
+    uint64_t maximum_rights;
     uint64_t channel_count;
     uint64_t queue_count;
     uint64_t shared_memory_size;
+    uint32_t slot_id;
+    uint32_t minimum_count;
+    uint32_t maximum_count;
+    uint32_t resource_flags;
+    uint32_t artifact_node_id;
+    kb2_artifact_kind_t artifact_kind;
+    int artifact_is_root;
+    uint8_t artifact_digest[KB2_DIGEST_SIZE];
     size_t index;
     int failure_error;
     kb2_status_t status;
@@ -274,6 +521,55 @@ static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
     if (host->resource_set_id != 0 || host->shared_memory != MAP_FAILED ||
         kb2_action_resource_set_id(action) != 0 || kb2_action_sandbox_id(action) != 0) {
         return KB2_STATUS_HOST_FAILURE;
+    }
+    if (host->manifest_fd < 0 && !kb2_test_make_closure_package(host)) {
+        kb2_test_host_release_local_resources(host);
+        return KB2_STATUS_HOST_FAILURE;
+    }
+    if (closure == NULL || kb2_closure_resource_count(closure) != 1 ||
+        kb2_closure_artifact_count(closure) != KB2_TEST_ARTIFACT_COUNT ||
+        kb2_closure_resource(closure,
+                             0,
+                             &slot_id,
+                             &resource_type,
+                             &minimum_count,
+                             &maximum_count,
+                             &required_rights,
+                             &maximum_rights,
+                             &resource_flags) != KB2_STATUS_OK ||
+        slot_id != 1 || resource_type != KB2_RESOURCE_CHANNEL || minimum_count != 1 ||
+        maximum_count != 1 ||
+        required_rights != (KB2_CHANNEL_RIGHT_SEND | KB2_CHANNEL_RIGHT_RECEIVE) ||
+        maximum_rights != required_rights ||
+        (resource_flags & KB2_RESOURCE_REQUIRED) == 0 ||
+        ((resource_flags & KB2_RESOURCE_RESET_REQUIRED) != 0) !=
+            ((kb2_action_launch_flags(action) & KB2_LAUNCH_RESET_REQUIRED) != 0)) {
+        return KB2_STATUS_RESOURCE_DENIED;
+    }
+    if (kb2_action_copy_digest(action,
+                               KB2_DIGEST_MANIFEST,
+                               configured_digest,
+                               sizeof(configured_digest)) != KB2_STATUS_OK ||
+        memcmp(configured_digest, host->manifest_digest, sizeof(configured_digest)) != 0) {
+        return KB2_STATUS_RESOURCE_DENIED;
+    }
+    for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
+        if (kb2_closure_artifact(closure,
+                                 index,
+                                 &artifact_node_id,
+                                 &artifact_kind,
+                                 &artifact_is_root,
+                                 artifact_digest,
+                                 sizeof(artifact_digest)) != KB2_STATUS_OK ||
+            artifact_node_id != index + 1u ||
+            artifact_kind != (index == 0 ? KB2_ARTIFACT_SHARED_PROVIDER
+                                         : KB2_ARTIFACT_RELOCATABLE_MODULE) ||
+            artifact_is_root != (index == 1) ||
+            memcmp(artifact_digest,
+                   host->artifact_digests[index],
+                   sizeof(artifact_digest)) != 0) {
+            return KB2_STATUS_RESOURCE_DENIED;
+        }
     }
     if (kb2_action_limit(action, KB2_LIMIT_SHARED_MEMORY_BYTES, &shared_memory_size) !=
             KB2_STATUS_OK ||
@@ -421,9 +717,13 @@ static kb2_status_t kb2_test_host_transfer(kb2_test_host_t *host,
     kb2_test_bootstrap_t bootstrap = {
         .generation = host->generation,
         .shared_memory_size = host->shared_memory_size,
+        .manifest_size = host->manifest_size,
         .channel_descriptor_size = host->channel_descriptor_size,
+        .artifact_count = KB2_TEST_ARTIFACT_COUNT,
+        .notification_count = KB2_TEST_NOTIFICATION_COUNT,
     };
-    int file_descriptors[KB2_TEST_TRANSFER_FD_COUNT];
+    int file_descriptors[KB2_TEST_MAX_TRANSFER_FD_COUNT];
+    size_t descriptor_count;
     size_t index;
 
     if (host->bootstrap_socket < 0 || host->process_id <= 0 || host->resources_transferred ||
@@ -431,15 +731,24 @@ static kb2_status_t kb2_test_host_transfer(kb2_test_host_t *host,
         kb2_action_sandbox_id(action) != host->sandbox_id) {
         return KB2_STATUS_HOST_FAILURE;
     }
+    memcpy(bootstrap.manifest_digest,
+           host->manifest_digest,
+           sizeof(bootstrap.manifest_digest));
     file_descriptors[0] = host->shared_memory_fd;
+    file_descriptors[1] = host->manifest_fd;
+    for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
+        file_descriptors[KB2_TEST_BASE_TRANSFER_FD_COUNT + index] = host->artifact_fds[index];
+    }
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {
         bootstrap.notification_ids[index] = host->notification_ids[index];
-        file_descriptors[index + 1] = host->notification_fds[index];
+        file_descriptors[KB2_TEST_BASE_TRANSFER_FD_COUNT + KB2_TEST_ARTIFACT_COUNT + index] =
+            host->notification_fds[index];
     }
+    descriptor_count = kb2_test_bootstrap_descriptor_count(&bootstrap);
     if (!kb2_test_send_bootstrap(host->bootstrap_socket,
                                  &bootstrap,
                                  file_descriptors,
-                                 KB2_TEST_TRANSFER_FD_COUNT)) {
+                                 descriptor_count)) {
         return KB2_STATUS_HOST_FAILURE;
     }
     host->resources_transferred = 1;
@@ -450,33 +759,56 @@ static kb2_status_t kb2_test_host_transfer(kb2_test_host_t *host,
     return KB2_STATUS_OK;
 }
 
-static kb2_status_t kb2_test_host_revoke(kb2_test_host_t *host, const kb2_action_t *action) {
-    uint64_t action_sandbox_id = kb2_action_sandbox_id(action);
-
+static kb2_status_t kb2_test_host_quiesce(kb2_test_host_t *host,
+                                          const kb2_action_t *action) {
     if (!host->resources_transferred || host->resources_revoked ||
+        host->abnormal_exit_allowed || host->process_id <= 0 || host->process_fd < 0 ||
         kb2_action_resource_set_id(action) != host->resource_set_id ||
-        (action_sandbox_id != host->sandbox_id &&
-         !(action_sandbox_id == 0 && host->abnormal_exit_allowed)) ||
-        host->process_id <= 0 || host->process_fd < 0) {
+        kb2_action_sandbox_id(action) != host->sandbox_id ||
+        !kb2_test_host_request_quiesce(host) ||
+        !kb2_test_wait_process_fd(host->process_fd, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
         return KB2_STATUS_HOST_FAILURE;
     }
-    if (!host->abnormal_exit_allowed) {
-        if (!kb2_test_host_request_quiesce(host)) {
-            return KB2_STATUS_HOST_FAILURE;
-        }
-    } else if (kill(host->process_id, SIGKILL) != 0 && errno != ESRCH) {
+    host->process_exited = 1;
+    kb2_test_close(&host->bootstrap_socket);
+    return KB2_STATUS_OK;
+}
+
+static kb2_status_t kb2_test_host_revoke(kb2_test_host_t *host, const kb2_action_t *action) {
+    if (!host->resources_transferred || host->resources_revoked || host->process_id <= 0 ||
+        host->process_fd < 0 || kb2_action_resource_set_id(action) != host->resource_set_id ||
+        kb2_action_sandbox_id(action) != 0) {
         return KB2_STATUS_HOST_FAILURE;
     }
-    if (!kb2_test_wait_process_fd(host->process_fd, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
+    if (!host->process_exited &&
+        !kb2_test_wait_process_fd(host->process_fd, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
         return KB2_STATUS_HOST_FAILURE;
     }
+    host->process_exited = 1;
     host->resources_revoked = 1;
-    host->reap_after_reset = action_sandbox_id == 0;
+    return KB2_STATUS_OK;
+}
+
+static kb2_status_t kb2_test_host_reap(kb2_test_host_t *host) {
+    int process_status;
+
+    if (!host->process_exited || host->process_id <= 0 ||
+        !kb2_test_wait_process(
+            host->process_id, &process_status, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
+        return KB2_STATUS_HOST_FAILURE;
+    }
+    if (!host->abnormal_exit_allowed &&
+        (!WIFEXITED(process_status) || WEXITSTATUS(process_status) != 0)) {
+        return KB2_STATUS_HOST_FAILURE;
+    }
+    host->process_id = -1;
+    host->process_exited = 0;
+    kb2_test_close(&host->process_fd);
+    kb2_test_close(&host->bootstrap_socket);
     return KB2_STATUS_OK;
 }
 
 static kb2_status_t kb2_test_host_reset(kb2_test_host_t *host, const kb2_action_t *action) {
-    int process_status;
     uint64_t value;
     size_t index;
     ssize_t bytes;
@@ -496,39 +828,41 @@ static kb2_status_t kb2_test_host_reset(kb2_test_host_t *host, const kb2_action_
             return KB2_STATUS_HOST_FAILURE;
         }
     }
-    if (host->reap_after_reset) {
-        if (!kb2_test_wait_process(
-                host->process_id, &process_status, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
-            return KB2_STATUS_HOST_FAILURE;
-        }
-        host->process_id = -1;
-        host->sandbox_id = 0;
-        kb2_test_close(&host->process_fd);
-    }
     return KB2_STATUS_OK;
 }
 
 static kb2_status_t kb2_test_host_terminate(kb2_test_host_t *host,
                                             const kb2_action_t *action) {
-    int process_status;
-
-    if (!host->resources_revoked || host->process_id <= 0 ||
+    if (host->process_id <= 0 || host->process_fd < 0 || host->process_exited ||
         kb2_action_resource_set_id(action) != 0 ||
-        kb2_action_sandbox_id(action) != host->sandbox_id ||
-        !kb2_test_wait_process(host->process_id,
-                               &process_status,
-                               KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
+        kb2_action_sandbox_id(action) != host->sandbox_id) {
         return KB2_STATUS_HOST_FAILURE;
     }
-    host->process_id = -1;
-    if (!host->abnormal_exit_allowed &&
-        (!WIFEXITED(process_status) || WEXITSTATUS(process_status) != 0)) {
+    if (kill(host->process_id, SIGKILL) != 0 && errno != ESRCH) {
         return KB2_STATUS_HOST_FAILURE;
     }
-    host->sandbox_id = 0;
-    kb2_test_close(&host->process_fd);
-    kb2_test_close(&host->bootstrap_socket);
+    host->abnormal_exit_allowed = 1;
+    if (!kb2_test_wait_process_fd(host->process_fd, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
+        return KB2_STATUS_HOST_FAILURE;
+    }
+    host->process_exited = 1;
     return KB2_STATUS_OK;
+}
+
+static kb2_status_t kb2_test_host_reap_action(kb2_test_host_t *host,
+                                              const kb2_action_t *action) {
+    kb2_status_t status;
+
+    if (!host->resources_revoked || !host->process_exited ||
+        kb2_action_resource_set_id(action) != 0 ||
+        kb2_action_sandbox_id(action) != host->sandbox_id) {
+        return KB2_STATUS_HOST_FAILURE;
+    }
+    status = kb2_test_host_reap(host);
+    if (status == KB2_STATUS_OK) {
+        host->sandbox_id = 0;
+    }
+    return status;
 }
 
 static kb2_status_t kb2_test_host_release(kb2_test_host_t *host,
@@ -563,12 +897,16 @@ kb2_status_t kb2_test_host_execute(kb2_test_host_t *host,
         return kb2_test_host_launch(host, action, sandbox_id_out);
     case KB2_ACTION_TRANSFER_RESOURCES:
         return kb2_test_host_transfer(host, action);
+    case KB2_ACTION_QUIESCE_SANDBOX:
+        return kb2_test_host_quiesce(host, action);
     case KB2_ACTION_REVOKE_RESOURCES:
         return kb2_test_host_revoke(host, action);
     case KB2_ACTION_RESET_RESOURCES:
         return kb2_test_host_reset(host, action);
     case KB2_ACTION_TERMINATE_SANDBOX:
         return kb2_test_host_terminate(host, action);
+    case KB2_ACTION_REAP_SANDBOX:
+        return kb2_test_host_reap_action(host, action);
     case KB2_ACTION_RELEASE_RESOURCES:
         return kb2_test_host_release(host, action);
     case KB2_ACTION_NONE:

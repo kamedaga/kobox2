@@ -4,6 +4,7 @@
 #include <kobox2/protocol.h>
 
 #include "host/linux_host_adapter.h"
+#include "test_closure.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -26,11 +27,17 @@ static void test_deallocate(void *context, void *pointer, size_t size) {
     free(pointer);
 }
 
-static int configure_controller(kb2_controller_t *controller) {
+static int configure_controller(kb2_controller_t *controller, const kb2_test_host_t *host) {
     uint8_t digest[KB2_DIGEST_SIZE];
     kb2_digest_kind_t kind;
 
-    for (kind = KB2_DIGEST_MANIFEST; kind < KB2_DIGEST_CHANNEL_SET; ++kind) {
+    if (!kb2_test_configure_fixture_closure(controller,
+                                            host->manifest_digest,
+                                            host->artifact_digests[0],
+                                            host->artifact_digests[1])) {
+        return 0;
+    }
+    for (kind = KB2_DIGEST_PROFILE; kind < KB2_DIGEST_CHANNEL_SET; ++kind) {
         memset(digest, (int)kind + 1, sizeof(digest));
         if (kb2_controller_set_digest(controller, kind, digest, sizeof(digest)) !=
             KB2_STATUS_OK) {
@@ -45,8 +52,6 @@ static int configure_controller(kb2_controller_t *controller) {
         kb2_controller_set_limit(controller, KB2_LIMIT_CHANNEL_COUNT, 1) != KB2_STATUS_OK ||
         kb2_controller_set_limit(controller, KB2_LIMIT_QUEUE_COUNT, 2) != KB2_STATUS_OK ||
         kb2_controller_set_limit(controller, KB2_LIMIT_OUTSTANDING_REQUEST_COUNT, 16) !=
-            KB2_STATUS_OK ||
-        kb2_controller_set_launch_flags(controller, KB2_LAUNCH_RESET_REQUIRED) !=
             KB2_STATUS_OK) {
         return 0;
     }
@@ -71,6 +76,10 @@ static int drive_actions(kb2_controller_t *controller, kb2_test_host_t *host) {
                                                                   sandbox_id);
 
         if (completion != result || result != KB2_STATUS_OK) {
+            fprintf(stderr, "host action %u failed: %u/%u\n",
+                    (unsigned)kb2_action_type(action),
+                    (unsigned)result,
+                    (unsigned)completion);
             return 0;
         }
     }
@@ -119,7 +128,9 @@ static int stop_and_release(kb2_controller_t *controller, kb2_test_host_t *host)
            kb2_test_host_is_released(host);
 }
 
-static int run_transport_and_normal_restart(const char *sandbox_path) {
+static int run_transport_and_normal_restart(const char *sandbox_path,
+                                            const char *core_path,
+                                            const char *module_path) {
     kb2_controller_t *controller = NULL;
     kb2_test_host_t host;
     uint64_t first_generation;
@@ -135,12 +146,12 @@ static int run_transport_and_normal_restart(const char *sandbox_path) {
     size_t batch;
     int success = 0;
 
-    if (!kb2_test_host_initialize(&host, sandbox_path)) {
+    if (!kb2_test_host_initialize(&host, sandbox_path, core_path, module_path)) {
         return 0;
     }
     if (kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) !=
             KB2_STATUS_OK ||
-        !configure_controller(controller) ||
+        !configure_controller(controller, &host) ||
         !start_running(controller, &host, &first_generation) ||
         !kb2_test_host_echo(&host, UINT64_C(0x1122334455667788), 0) ||
         !kb2_test_host_echo(&host, UINT64_C(0x8877665544332211), 1)) {
@@ -227,6 +238,8 @@ finish:
 }
 
 static int run_fault_restart(const char *sandbox_path,
+                             const char *core_path,
+                             const char *module_path,
                              kb2_test_fault_scenario_t scenario,
                              kb2_fault_kind_t expected_fault_kind) {
     kb2_controller_t *controller = NULL;
@@ -239,12 +252,12 @@ static int run_fault_restart(const char *sandbox_path,
     uint32_t first_notification_ids[KB2_TEST_NOTIFICATION_COUNT];
     int success = 0;
 
-    if (!kb2_test_host_initialize(&host, sandbox_path)) {
+    if (!kb2_test_host_initialize(&host, sandbox_path, core_path, module_path)) {
         return 0;
     }
     if (kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) !=
             KB2_STATUS_OK ||
-        !configure_controller(controller) ||
+        !configure_controller(controller, &host) ||
         !start_running(controller, &host, &first_generation)) {
         goto finish;
     }
@@ -300,16 +313,19 @@ int main(int argument_count, char **arguments) {
     };
     size_t index;
 
-    if (argument_count != 2) {
-        fprintf(stderr, "usage: %s SANDBOX_CHILD\n", arguments[0]);
+    if (argument_count != 4) {
+        fprintf(stderr, "usage: %s SANDBOX_CHILD CORE_SO MODULE_KO\n", arguments[0]);
         return 2;
     }
-    if (!run_transport_and_normal_restart(arguments[1])) {
+    if (!run_transport_and_normal_restart(arguments[1], arguments[2], arguments[3])) {
         return 1;
     }
     for (index = 0; index < sizeof(fault_scenarios) / sizeof(fault_scenarios[0]); ++index) {
-        if (!run_fault_restart(
-                arguments[1], fault_scenarios[index].scenario, fault_scenarios[index].kind)) {
+        if (!run_fault_restart(arguments[1],
+                               arguments[2],
+                               arguments[3],
+                               fault_scenarios[index].scenario,
+                               fault_scenarios[index].kind)) {
             return 1;
         }
     }

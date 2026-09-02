@@ -4,6 +4,7 @@
 #include <kobox2/protocol.h>
 
 #include "host/linux_host_adapter.h"
+#include "test_closure.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,11 +21,17 @@ static void test_deallocate(void *context, void *pointer, size_t size) {
     free(pointer);
 }
 
-static int configure(kb2_controller_t *controller) {
+static int configure(kb2_controller_t *controller, const kb2_test_host_t *host) {
     uint8_t digest[KB2_DIGEST_SIZE];
     kb2_digest_kind_t kind;
 
-    for (kind = KB2_DIGEST_MANIFEST; kind < KB2_DIGEST_CHANNEL_SET; ++kind) {
+    if (!kb2_test_configure_fixture_closure(controller,
+                                            host->manifest_digest,
+                                            host->artifact_digests[0],
+                                            host->artifact_digests[1])) {
+        return 0;
+    }
+    for (kind = KB2_DIGEST_PROFILE; kind < KB2_DIGEST_CHANNEL_SET; ++kind) {
         memset(digest, (int)kind + 1, sizeof(digest));
         if (kb2_controller_set_digest(controller, kind, digest, sizeof(digest)) !=
             KB2_STATUS_OK) {
@@ -41,8 +48,6 @@ static int configure(kb2_controller_t *controller) {
            kb2_controller_set_limit(controller, KB2_LIMIT_QUEUE_COUNT, 2) ==
                KB2_STATUS_OK &&
            kb2_controller_set_limit(controller, KB2_LIMIT_OUTSTANDING_REQUEST_COUNT, 16) ==
-               KB2_STATUS_OK &&
-           kb2_controller_set_launch_flags(controller, KB2_LAUNCH_RESET_REQUIRED) ==
                KB2_STATUS_OK;
 }
 
@@ -57,7 +62,14 @@ static int drive(kb2_controller_t *controller, kb2_test_host_t *host) {
         kb2_status_t result =
             kb2_test_host_execute(host, action, &resource_set_id, &sandbox_id);
 
-        if (result != KB2_STATUS_OK ||
+        if (result != KB2_STATUS_OK) {
+            fprintf(stderr,
+                    "host action %u failed: %u\n",
+                    (unsigned)kb2_action_type(action),
+                    (unsigned)result);
+            return 0;
+        }
+        if (
             kb2_controller_complete_action(controller,
                                            generation,
                                            token,
@@ -77,17 +89,17 @@ int main(int argument_count, char **arguments) {
     int host_initialized = 0;
     int result = 1;
 
-    if (argument_count != 2) {
-        fprintf(stderr, "usage: %s FIXTURE_SANDBOX\n", arguments[0]);
+    if (argument_count != 4) {
+        fprintf(stderr, "usage: %s FIXTURE_SANDBOX CORE_SO MODULE_KO\n", arguments[0]);
         return 2;
     }
-    if (!kb2_test_host_initialize(&host, arguments[1])) {
+    if (!kb2_test_host_initialize(&host, arguments[1], arguments[2], arguments[3])) {
         return 1;
     }
     host_initialized = 1;
     if (kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) !=
             KB2_STATUS_OK ||
-        !configure(controller) || kb2_controller_start(controller) != KB2_STATUS_OK ||
+        !configure(controller, &host) || kb2_controller_start(controller) != KB2_STATUS_OK ||
         !drive(controller, &host) ||
         kb2_controller_state(controller) != KB2_STATE_HANDSHAKING) {
         goto finish;

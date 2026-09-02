@@ -14,6 +14,7 @@ extern "C" {
 
 typedef struct kb2_controller kb2_controller_t;
 typedef struct kb2_action kb2_action_t;
+typedef struct kb2_closure kb2_closure_t;
 
 typedef void *(*kb2_allocate_fn)(void *context, size_t size);
 typedef void (*kb2_deallocate_fn)(void *context, void *pointer, size_t size);
@@ -66,9 +67,11 @@ typedef enum kb2_action_type {
     KB2_ACTION_ALLOCATE_RESOURCES,
     KB2_ACTION_LAUNCH_SANDBOX,
     KB2_ACTION_TRANSFER_RESOURCES,
+    KB2_ACTION_QUIESCE_SANDBOX,
+    KB2_ACTION_TERMINATE_SANDBOX,
     KB2_ACTION_REVOKE_RESOURCES,
     KB2_ACTION_RESET_RESOURCES,
-    KB2_ACTION_TERMINATE_SANDBOX,
+    KB2_ACTION_REAP_SANDBOX,
     KB2_ACTION_RELEASE_RESOURCES,
 } kb2_action_type_t;
 
@@ -90,7 +93,10 @@ kb2_status_t kb2_controller_create(kb2_allocate_fn allocate,
                                    kb2_controller_t **controller_out);
 void kb2_controller_destroy(kb2_controller_t *controller);
 
-/* Configuration is copied and may be changed only while the controller is idle. */
+/* Configuration is copied and may be changed only while the controller is idle.
+ * The manifest digest and reset policy come from the immutable closure. */
+kb2_status_t kb2_controller_set_closure(kb2_controller_t *controller,
+                                        const kb2_closure_t *closure);
 kb2_status_t kb2_controller_set_digest(kb2_controller_t *controller,
                                        kb2_digest_kind_t kind,
                                        const uint8_t *digest,
@@ -98,7 +104,6 @@ kb2_status_t kb2_controller_set_digest(kb2_controller_t *controller,
 kb2_status_t kb2_controller_set_limit(kb2_controller_t *controller,
                                       kb2_limit_kind_t kind,
                                       uint64_t value);
-kb2_status_t kb2_controller_set_launch_flags(kb2_controller_t *controller, uint32_t flags);
 
 kb2_state_t kb2_controller_state(const kb2_controller_t *controller);
 uint64_t kb2_controller_generation(const kb2_controller_t *controller);
@@ -113,6 +118,7 @@ uint64_t kb2_action_generation(const kb2_action_t *action);
 uint64_t kb2_action_resource_set_id(const kb2_action_t *action);
 uint64_t kb2_action_sandbox_id(const kb2_action_t *action);
 uint32_t kb2_action_launch_flags(const kb2_action_t *action);
+const kb2_closure_t *kb2_action_closure(const kb2_action_t *action);
 kb2_status_t kb2_action_copy_digest(const kb2_action_t *action,
                                     kb2_digest_kind_t kind,
                                     uint8_t *digest_out,

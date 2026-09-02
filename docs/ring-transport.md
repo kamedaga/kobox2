@@ -78,8 +78,8 @@ used length records the bytes written into writable descriptors.
   reserved fields.
   A validation failure moves the channel to `FAULTED` and emits a control fault.
 - Each sandbox generation receives new virtqueue memory, channel IDs, address
-  registrations, and notification endpoints. Restart orders capability
-  revocation, device reset, process termination, allocation, transfer, and
-  control handshake.
+  registrations, and notification endpoints. Restart completes process exit,
+  capability revocation, device reset, reap, allocation, transfer, and control
+  handshake in order.
 - The controller retains the management channel. Data-channel ownership moves
   to the client and sandbox when channel establishment completes.

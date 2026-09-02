@@ -3,7 +3,7 @@
 ## Controller
 
 The kobox2 controller is a library used by a host-owned service such as PachaOS
-`gpud`. It owns lifecycle state, validates an opaque role manifest, establishes
+`gpud`. It owns lifecycle state, validates an immutable role closure, establishes
 channels, transfers bounded resources, and supervises restart generations.
 
 It does not own the device data path and does not understand Linux APIs.

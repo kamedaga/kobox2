@@ -2,6 +2,8 @@
 
 #include <kobox2/controller.h>
 
+#include "../closure_internal.h"
+
 #include <limits.h>
 #include <string.h>
 
@@ -10,6 +12,7 @@
 #define KB2_KNOWN_LAUNCH_FLAGS ((uint32_t)KB2_LAUNCH_RESET_REQUIRED)
 
 struct kb2_configuration {
+    kb2_closure_t *closure;
     uint8_t digests[KB2_DIGEST_KIND_COUNT][KB2_DIGEST_SIZE];
     uint64_t limits[KB2_LIMIT_KIND_COUNT];
     uint32_t digest_mask;
@@ -26,6 +29,7 @@ struct kb2_action {
 };
 
 struct kb2_controller {
+    kb2_allocate_fn allocate;
     kb2_deallocate_fn deallocate;
     void *allocator_context;
     struct kb2_configuration configuration;
@@ -42,7 +46,9 @@ struct kb2_controller {
     int resources_revoked;
     int resources_reset;
     int process_started;
+    int process_exited;
     int restart_requested;
+    int graceful_stop;
 };
 
 static int kb2_digest_kind_valid(kb2_digest_kind_t kind) {
@@ -91,12 +97,16 @@ static kb2_status_t kb2_emit_action(kb2_controller_t *controller, kb2_action_typ
         controller->action.resource_set_id = controller->resource_set_id;
         break;
     case KB2_ACTION_TRANSFER_RESOURCES:
-    case KB2_ACTION_REVOKE_RESOURCES:
+    case KB2_ACTION_QUIESCE_SANDBOX:
         controller->action.resource_set_id = controller->resource_set_id;
         controller->action.sandbox_id = controller->sandbox_id;
         break;
     case KB2_ACTION_TERMINATE_SANDBOX:
+    case KB2_ACTION_REAP_SANDBOX:
         controller->action.sandbox_id = controller->sandbox_id;
+        break;
+    case KB2_ACTION_REVOKE_RESOURCES:
+        controller->action.resource_set_id = controller->resource_set_id;
         break;
     case KB2_ACTION_ALLOCATE_RESOURCES:
     case KB2_ACTION_NONE:
@@ -109,14 +119,16 @@ static kb2_status_t kb2_emit_action(kb2_controller_t *controller, kb2_action_typ
 }
 
 static kb2_status_t kb2_validate_configuration(const kb2_controller_t *controller) {
-    const uint32_t required_digest_mask = (1u << KB2_DIGEST_KIND_COUNT) - 1u;
+    const uint32_t required_digest_mask =
+        ((1u << KB2_DIGEST_KIND_COUNT) - 1u) & ~(1u << KB2_DIGEST_MANIFEST);
     uint64_t channels;
     size_t index;
 
-    if (controller->configuration.digest_mask != required_digest_mask) {
+    if (controller->configuration.closure == NULL ||
+        controller->configuration.digest_mask != required_digest_mask) {
         return KB2_STATUS_INVALID_CONFIGURATION;
     }
-    for (index = 0; index < KB2_DIGEST_KIND_COUNT; ++index) {
+    for (index = KB2_DIGEST_PROFILE; index < KB2_DIGEST_KIND_COUNT; ++index) {
         if (kb2_digest_is_zero(controller->configuration.digests[index])) {
             return KB2_STATUS_INVALID_CONFIGURATION;
         }
@@ -165,6 +177,7 @@ static kb2_status_t kb2_begin_start(kb2_controller_t *controller) {
     controller->resources_revoked = 0;
     controller->resources_reset = 0;
     controller->process_started = 0;
+    controller->process_exited = 0;
     return kb2_emit_action(controller, KB2_ACTION_ALLOCATE_RESOURCES);
 }
 
@@ -191,14 +204,19 @@ static kb2_status_t kb2_finish_cleanup(kb2_controller_t *controller) {
 static kb2_status_t kb2_next_cleanup_action(kb2_controller_t *controller) {
     int reset_required = (controller->configuration.flags & KB2_LAUNCH_RESET_REQUIRED) != 0;
 
+    if (controller->process_started) {
+        return kb2_emit_action(controller,
+                               controller->graceful_stop ? KB2_ACTION_QUIESCE_SANDBOX
+                                                         : KB2_ACTION_TERMINATE_SANDBOX);
+    }
     if (controller->resources_allocated && !controller->resources_revoked) {
         return kb2_emit_action(controller, KB2_ACTION_REVOKE_RESOURCES);
     }
     if (controller->resources_allocated && reset_required && !controller->resources_reset) {
         return kb2_emit_action(controller, KB2_ACTION_RESET_RESOURCES);
     }
-    if (controller->process_started) {
-        return kb2_emit_action(controller, KB2_ACTION_TERMINATE_SANDBOX);
+    if (controller->process_exited) {
+        return kb2_emit_action(controller, KB2_ACTION_REAP_SANDBOX);
     }
     if (controller->resources_allocated) {
         return kb2_emit_action(controller, KB2_ACTION_RELEASE_RESOURCES);
@@ -207,6 +225,7 @@ static kb2_status_t kb2_next_cleanup_action(kb2_controller_t *controller) {
 }
 
 static kb2_status_t kb2_begin_cleanup(kb2_controller_t *controller, int restart) {
+    controller->graceful_stop = controller->state != KB2_STATE_FAULTED;
     controller->state = KB2_STATE_STOPPING;
     controller->restart_requested = restart;
     return kb2_next_cleanup_action(controller);
@@ -228,6 +247,7 @@ kb2_status_t kb2_controller_create(kb2_allocate_fn allocate,
     }
 
     memset(controller, 0, sizeof(*controller));
+    controller->allocate = allocate;
     controller->deallocate = deallocate;
     controller->allocator_context = allocator_context;
     controller->state = KB2_STATE_IDLE;
@@ -245,8 +265,34 @@ void kb2_controller_destroy(kb2_controller_t *controller) {
     }
     deallocate = controller->deallocate;
     allocator_context = controller->allocator_context;
+    kb2_closure_destroy(controller->configuration.closure);
     memset(controller, 0, sizeof(*controller));
     deallocate(allocator_context, controller, sizeof(*controller));
+}
+
+kb2_status_t kb2_controller_set_closure(kb2_controller_t *controller,
+                                        const kb2_closure_t *closure) {
+    kb2_closure_t *copy;
+    kb2_status_t status;
+
+    if (controller == NULL || closure == NULL) {
+        return KB2_STATUS_INVALID_ARGUMENT;
+    }
+    if (controller->state != KB2_STATE_IDLE || controller->action_pending) {
+        return KB2_STATUS_INVALID_STATE;
+    }
+    status = kb2_closure_clone(closure,
+                               controller->allocate,
+                               controller->deallocate,
+                               controller->allocator_context,
+                               &copy);
+    if (status != KB2_STATUS_OK) {
+        return status;
+    }
+    kb2_closure_destroy(controller->configuration.closure);
+    controller->configuration.closure = copy;
+    controller->configuration.flags = kb2_closure_launch_flags(copy);
+    return KB2_STATUS_OK;
 }
 
 kb2_status_t kb2_controller_set_digest(kb2_controller_t *controller,
@@ -255,6 +301,9 @@ kb2_status_t kb2_controller_set_digest(kb2_controller_t *controller,
                                        size_t digest_size) {
     if (controller == NULL || digest == NULL || !kb2_digest_kind_valid(kind) ||
         digest_size != KB2_DIGEST_SIZE) {
+        return KB2_STATUS_INVALID_ARGUMENT;
+    }
+    if (kind == KB2_DIGEST_MANIFEST) {
         return KB2_STATUS_INVALID_ARGUMENT;
     }
     if (controller->state != KB2_STATE_IDLE || controller->action_pending) {
@@ -283,21 +332,6 @@ kb2_status_t kb2_controller_set_limit(kb2_controller_t *controller,
     }
 
     controller->configuration.limits[kind] = value;
-    return KB2_STATUS_OK;
-}
-
-kb2_status_t kb2_controller_set_launch_flags(kb2_controller_t *controller, uint32_t flags) {
-    if (controller == NULL) {
-        return KB2_STATUS_INVALID_ARGUMENT;
-    }
-    if (controller->state != KB2_STATE_IDLE || controller->action_pending) {
-        return KB2_STATUS_INVALID_STATE;
-    }
-    if ((flags & ~KB2_KNOWN_LAUNCH_FLAGS) != 0) {
-        return KB2_STATUS_INVALID_CONFIGURATION;
-    }
-
-    controller->configuration.flags = flags;
     return KB2_STATUS_OK;
 }
 
@@ -348,6 +382,10 @@ uint32_t kb2_action_launch_flags(const kb2_action_t *action) {
     return action == NULL ? 0 : action->configuration.flags;
 }
 
+const kb2_closure_t *kb2_action_closure(const kb2_action_t *action) {
+    return action == NULL ? NULL : action->configuration.closure;
+}
+
 kb2_status_t kb2_action_copy_digest(const kb2_action_t *action,
                                     kb2_digest_kind_t kind,
                                     uint8_t *digest_out,
@@ -355,6 +393,10 @@ kb2_status_t kb2_action_copy_digest(const kb2_action_t *action,
     if (action == NULL || digest_out == NULL || !kb2_digest_kind_valid(kind) ||
         digest_size != KB2_DIGEST_SIZE) {
         return KB2_STATUS_INVALID_ARGUMENT;
+    }
+    if (kind == KB2_DIGEST_MANIFEST) {
+        return kb2_closure_copy_manifest_digest(
+            action->configuration.closure, digest_out, digest_size);
     }
     memcpy(digest_out, action->configuration.digests[kind], KB2_DIGEST_SIZE);
     return KB2_STATUS_OK;
@@ -476,15 +518,23 @@ kb2_status_t kb2_controller_complete_action(kb2_controller_t *controller,
     case KB2_ACTION_TRANSFER_RESOURCES:
         controller->state = KB2_STATE_HANDSHAKING;
         return KB2_STATUS_OK;
+    case KB2_ACTION_QUIESCE_SANDBOX:
+        controller->process_started = 0;
+        controller->process_exited = 1;
+        return kb2_next_cleanup_action(controller);
+    case KB2_ACTION_TERMINATE_SANDBOX:
+        controller->process_started = 0;
+        controller->process_exited = 1;
+        return kb2_next_cleanup_action(controller);
+    case KB2_ACTION_REAP_SANDBOX:
+        controller->process_exited = 0;
+        controller->sandbox_id = 0;
+        return kb2_next_cleanup_action(controller);
     case KB2_ACTION_REVOKE_RESOURCES:
         controller->resources_revoked = 1;
         return kb2_next_cleanup_action(controller);
     case KB2_ACTION_RESET_RESOURCES:
         controller->resources_reset = 1;
-        return kb2_next_cleanup_action(controller);
-    case KB2_ACTION_TERMINATE_SANDBOX:
-        controller->process_started = 0;
-        controller->sandbox_id = 0;
         return kb2_next_cleanup_action(controller);
     case KB2_ACTION_RELEASE_RESOURCES:
         controller->resources_allocated = 0;
@@ -537,7 +587,7 @@ kb2_status_t kb2_controller_report_fault(kb2_controller_t *controller,
 
     if (kind == KB2_FAULT_PROCESS_EXIT) {
         controller->process_started = 0;
-        controller->sandbox_id = 0;
+        controller->process_exited = 1;
     }
     controller->state = KB2_STATE_FAULTED;
     controller->fault_kind = kind;

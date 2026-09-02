@@ -17,14 +17,15 @@ libraryはI/Oもthread生成も行わず、Linuxやhost OSのsemanticsを持ち�
 outstanding actionは一つまでです。hostは次のcommandまたはeventを渡す前に完了を報告し、
 実行failureも明示的なresultとして返します。
 
-startではsandboxがrunningになる前に新しいresourceとgenerationを確立します。stopとrestartは
-revoke、manifestが要求するresource reset、process終了、resource解放、次のstartの順で
-進めます。異なるgenerationの結果は拒否します。
+startではsandboxがrunningになる前に新しいresourceとgenerationを確立します。正常なstopと
+restartはclosureをquiesceし、process終了を確認してからrevoke、reset、reap、resource解放、
+次のstartの順で進めます。fault cleanupはprocessをterminateしてから同じresource cleanupを
+行います。異なるgenerationの結果は拒否します。
 
 ## interface
 
-- launch descriptionはopaqueなmanifest/profile digest、resource limit、capability、channel
-  descriptionを持ちます。
+- launch descriptionは検証済みの不変なclosure、profile/channel digest、resource limitを
+  持ちます。reset flagはclosureのresource policyから導出します。
 - eventはaction完了、sandbox handshake、process終了、protocol fault、hostからのstop/restart
   requestを通知します。
 - actionはtype、generation、token、上限付きargumentを持ちます。native handleはhost adapterが
@@ -41,6 +42,7 @@ controller API、host contract、transport、role protocolは一つの`dev` inte
 互換性保証は持ちません。すべてのcomponentを一致するsource revisionとschema digestでbuild
 します。
 
-最初のABI番号は、conformance fixture通過後に明示的にfreezeするときだけ割り当てます。
+ABI番号は、conformance fixture通過後に明示的にfreezeするときだけ割り当てます。
 
 action契約は[host-actions-jp.md](./host-actions-jp.md)で定義します。
+closure契約は[module-closure-jp.md](./module-closure-jp.md)で定義します。

@@ -1,6 +1,6 @@
 # Tests
 
-The first tests will cover manifest rejection, lifecycle transitions,
-generation rollover, malformed wire messages, crash/restart, and a mock-host
-fixture sandbox. Device-specific acceptance tests remain in the host OS
-repository.
+Controller tests cover configuration rejection, lifecycle transitions,
+generation rollover, host failure, and crash/restart. Wire validation and the
+mock-host fixture sandbox follow with their implementations. Device-specific
+acceptance tests remain in the host OS repository.

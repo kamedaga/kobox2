@@ -15,10 +15,13 @@ Each call supplies one command or event. A successful call commits one
 deterministic transition and may produce actions. Invalid input leaves the
 controller unchanged.
 
+At most one action is outstanding. The host reports its completion before
+delivering another command or event; failed execution is an explicit result.
+
 Start establishes fresh resources and a new generation before the sandbox
-becomes running. Stop and restart order revocation, device reset when present,
-process termination, resource release, and the next start. Results from another
-generation are rejected.
+becomes running. Stop and restart order revocation, manifest-required resource
+reset, process termination, resource release, and the next start. Results from
+another generation are rejected.
 
 ## Interface
 
@@ -31,8 +34,9 @@ generation are rejected.
 - Status uses `kb2_status_t`; host errors are translated at the adapter.
 
 Public controller types are opaque. The caller owns each object's lifetime and
-serializes access to it. The library retains no caller pointers, uses only an
-explicit allocator, and represents host operations as output actions.
+serializes access to it. The library copies configuration data; its only retained
+caller references are the explicit allocator callbacks and context. Host
+operations are output actions.
 
 ## Development contract
 

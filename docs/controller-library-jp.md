@@ -14,9 +14,12 @@ libraryはI/Oもthread生成も行わず、Linuxやhost OSのsemanticsを持ち�
 各呼び出しは一つのcommandまたはeventを渡します。成功時は一つの決定的な遷移を確定し、
 必要なactionを生成します。不正な入力ではcontrollerを変更しません。
 
+outstanding actionは一つまでです。hostは次のcommandまたはeventを渡す前に完了を報告し、
+実行failureも明示的なresultとして返します。
+
 startではsandboxがrunningになる前に新しいresourceとgenerationを確立します。stopとrestartは
-revoke、deviceがある場合のreset、process終了、resource解放、次のstartの順で進めます。
-異なるgenerationの結果は拒否します。
+revoke、manifestが要求するresource reset、process終了、resource解放、次のstartの順で
+進めます。異なるgenerationの結果は拒否します。
 
 ## interface
 
@@ -29,8 +32,8 @@ revoke、deviceがある場合のreset、process終了、resource解放、次の
 - statusには`kb2_status_t`を使い、host errorはadapterで変換します。
 
 public controller typeはopaqueです。callerが各objectのlifetimeを所有し、呼び出しを直列化します。
-libraryはcallerのpointerを保持せず、明示的なallocatorだけを使い、host operationを出力actionで
-表現します。
+libraryはconfiguration dataをcopyし、明示的なallocator callbackとcontextだけを保持します。
+host operationは出力actionで表現します。
 
 ## 開発版の契約
 

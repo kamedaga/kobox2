@@ -1,5 +1,5 @@
 # test
 
-最初のtestでは、manifest拒否、lifecycle transition、generation rollover、不正wire
-message、crash/restart、mock host上のfixture sandboxを扱います。device固有の
-acceptance testはhost OSリポジトリに置きます。
+controller testはconfiguration拒否、lifecycle transition、generation rollover、host
+failure、crash/restartを扱います。wire validationとmock host上のfixture sandboxは各実装と
+同時に追加します。device固有のacceptance testはhost OSリポジトリに置きます。

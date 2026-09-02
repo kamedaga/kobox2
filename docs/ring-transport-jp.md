@@ -3,6 +3,11 @@
 このtransportは番号なしの`dev` interfaceに含まれます。明示的なABI freezeまでは、
 すべてのpeerが同じschema digestを使います。
 
+byte layoutの正本は`protocol/schema/transport.json`で、生成済み定数は
+`protocol/generated/include/kobox2/protocol_layout.h`です。固定sizeはchannel headerが
+96 byte、queue descriptorが64 byte、region descriptorが32 byte、message envelopeが
+40 byteです。
+
 ## model
 
 kobox2はVirtio 1.0 little-endian split virtqueue layoutを使います。各channelは一つの
@@ -25,9 +30,8 @@ sandboxとdevice interfaceが所有します。
 
 channel descriptorはdescriptor size、ABI identity、schema digest、feature bit、channel
 ID、sandbox generation、queue定義、notification endpoint、transport-address regionを
-持ちます。ABI identityは番号ではなく4 byteの`dev\0`です。schema digestはcanonical
-schema bundleのSHA-256で、reserved fieldはzeroです。一致しなければchannel確立を
-拒否します。
+持ちます。ABI identityは番号ではなく4 byteの`dev\0`です。schema digestはschemaの
+RFC 8785表現のSHA-256で、reserved fieldはzeroです。一致しなければchannel確立を拒否します。
 
 ## addressing
 

@@ -46,3 +46,5 @@ uses matching source revisions and schema digests across all components.
 
 The first ABI number is assigned only by an explicit freeze after the
 conformance fixture passes.
+
+The action contract is specified in [host-actions.md](./host-actions.md).

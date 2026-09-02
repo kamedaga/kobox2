@@ -42,3 +42,5 @@ controller API、host contract、transport、role protocolは一つの`dev` inte
 します。
 
 最初のABI番号は、conformance fixture通過後に明示的にfreezeするときだけ割り当てます。
+
+action契約は[host-actions-jp.md](./host-actions-jp.md)で定義します。

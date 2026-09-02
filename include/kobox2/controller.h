@@ -111,6 +111,7 @@ kb2_action_type_t kb2_action_type(const kb2_action_t *action);
 uint64_t kb2_action_token(const kb2_action_t *action);
 uint64_t kb2_action_generation(const kb2_action_t *action);
 uint64_t kb2_action_resource_set_id(const kb2_action_t *action);
+uint64_t kb2_action_sandbox_id(const kb2_action_t *action);
 uint32_t kb2_action_launch_flags(const kb2_action_t *action);
 kb2_status_t kb2_action_copy_digest(const kb2_action_t *action,
                                     kb2_digest_kind_t kind,
@@ -123,11 +124,14 @@ kb2_status_t kb2_action_limit(const kb2_action_t *action,
 kb2_status_t kb2_controller_start(kb2_controller_t *controller);
 kb2_status_t kb2_controller_stop(kb2_controller_t *controller);
 kb2_status_t kb2_controller_restart(kb2_controller_t *controller);
+/* Allocation returns a resource ID, launch returns a sandbox ID, and other
+ * completions return none. Failed completions return neither ID. */
 kb2_status_t kb2_controller_complete_action(kb2_controller_t *controller,
                                             uint64_t generation,
                                             uint64_t token,
                                             kb2_status_t result,
-                                            uint64_t resource_set_id);
+                                            uint64_t resource_set_id,
+                                            uint64_t sandbox_id);
 kb2_status_t kb2_controller_report_ready(kb2_controller_t *controller, uint64_t generation);
 /* Callers report only process-exit and protocol faults; other kinds are controller-owned. */
 kb2_status_t kb2_controller_report_fault(kb2_controller_t *controller,

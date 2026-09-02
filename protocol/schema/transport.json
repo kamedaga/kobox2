@@ -1,0 +1,85 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.transport",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "constants": {
+    "max_queues": 1024,
+    "max_regions": 1024,
+    "queue_size_min": 16,
+    "queue_size_max": 32768,
+    "transport_feature_indirect_desc": 268435456,
+    "transport_feature_event_idx": 536870912,
+    "transport_features_required": 805306368,
+    "channel_flag_management": 1,
+    "channel_flag_data": 2,
+    "queue_role_event": 1,
+    "queue_role_request": 2,
+    "region_right_read": 1,
+    "region_right_write": 2
+  },
+  "structures": {
+    "message_envelope": {
+      "size": 40,
+      "fields": [
+        { "name": "protocol_id", "type": "u32", "offset": 0 },
+        { "name": "abi_identity", "type": "u8[4]", "offset": 4 },
+        { "name": "opcode", "type": "u32", "offset": 8 },
+        { "name": "flags", "type": "u32", "offset": 12 },
+        { "name": "generation", "type": "u64", "offset": 16 },
+        { "name": "correlation_id", "type": "u64", "offset": 24 },
+        { "name": "payload_length", "type": "u32", "offset": 32 },
+        { "name": "reserved", "type": "u32", "offset": 36 }
+      ]
+    },
+    "channel_header": {
+      "size": 96,
+      "fields": [
+        { "name": "total_size", "type": "u32", "offset": 0 },
+        { "name": "abi_identity", "type": "u8[4]", "offset": 4 },
+        { "name": "schema_digest", "type": "u8[32]", "offset": 8 },
+        { "name": "feature_bits", "type": "u64", "offset": 40 },
+        { "name": "channel_id", "type": "u64", "offset": 48 },
+        { "name": "generation", "type": "u64", "offset": 56 },
+        { "name": "protocol_id", "type": "u32", "offset": 64 },
+        { "name": "flags", "type": "u32", "offset": 68 },
+        { "name": "queue_count", "type": "u32", "offset": 72 },
+        { "name": "region_count", "type": "u32", "offset": 76 },
+        { "name": "queue_table_offset", "type": "u32", "offset": 80 },
+        { "name": "region_table_offset", "type": "u32", "offset": 84 },
+        { "name": "reserved_0", "type": "u32", "offset": 88 },
+        { "name": "reserved_1", "type": "u32", "offset": 92 }
+      ]
+    },
+    "queue_descriptor": {
+      "size": 64,
+      "fields": [
+        { "name": "queue_id", "type": "u32", "offset": 0 },
+        { "name": "role", "type": "u32", "offset": 4 },
+        { "name": "queue_size", "type": "u32", "offset": 8 },
+        { "name": "flags", "type": "u32", "offset": 12 },
+        { "name": "descriptor_address", "type": "u64", "offset": 16 },
+        { "name": "available_address", "type": "u64", "offset": 24 },
+        { "name": "used_address", "type": "u64", "offset": 32 },
+        { "name": "available_notification_id", "type": "u32", "offset": 40 },
+        { "name": "used_notification_id", "type": "u32", "offset": 44 },
+        { "name": "max_chain_length", "type": "u32", "offset": 48 },
+        { "name": "max_indirect_length", "type": "u32", "offset": 52 },
+        { "name": "max_outstanding", "type": "u32", "offset": 56 },
+        { "name": "reserved", "type": "u32", "offset": 60 }
+      ]
+    },
+    "region_descriptor": {
+      "size": 32,
+      "fields": [
+        { "name": "region_id", "type": "u32", "offset": 0 },
+        { "name": "rights", "type": "u32", "offset": 4 },
+        { "name": "transport_base", "type": "u64", "offset": 8 },
+        { "name": "length", "type": "u64", "offset": 16 },
+        { "name": "reserved", "type": "u64", "offset": 24 }
+      ]
+    }
+  }
+}

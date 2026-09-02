@@ -3,6 +3,11 @@
 This transport is part of the unnumbered `dev` interface. All peers use the
 same schema digest until an explicit ABI freeze.
 
+The canonical byte layout is `protocol/schema/transport.json` and its checked-in
+generated constants are `protocol/generated/include/kobox2/protocol_layout.h`.
+The fixed sizes are 96 bytes for a channel header, 64 for a queue descriptor,
+32 for a region descriptor, and 40 for a message envelope.
+
 ## Model
 
 kobox2 uses the Virtio 1.0 little-endian split virtqueue layout. Each channel
@@ -28,7 +33,7 @@ The channel descriptor contains its size, ABI identity, schema digest, feature
 bits, channel ID, sandbox generation, queue definitions, notification endpoints,
 and transport-address regions. The ABI identity is `dev`, not a number. Reserved
 fields are zero. The identity is the four bytes `dev\0`; the schema digest is
-SHA-256 over the canonical schema bundle. A mismatch rejects channel
+SHA-256 over the schema's RFC 8785 representation. A mismatch rejects channel
 establishment.
 
 ## Addressing

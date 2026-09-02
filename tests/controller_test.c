@@ -47,7 +47,8 @@ static int configure_controller(kb2_controller_t *controller) {
 
 static int complete_pending(kb2_controller_t *controller,
                             kb2_action_type_t expected,
-                            uint64_t resource_set_id) {
+                            uint64_t resource_set_id,
+                            uint64_t sandbox_id) {
     const kb2_action_t *action = kb2_controller_pending_action(controller);
 
     CHECK(action != NULL);
@@ -57,7 +58,8 @@ static int complete_pending(kb2_controller_t *controller,
                                          kb2_action_generation(action),
                                          kb2_action_token(action),
                                          KB2_STATUS_OK,
-                                         resource_set_id) == KB2_STATUS_OK);
+                                         resource_set_id,
+                                         sandbox_id) == KB2_STATUS_OK);
     return 0;
 }
 
@@ -91,6 +93,7 @@ static int test_start_and_restart(void) {
     CHECK(action != NULL);
     CHECK(kb2_action_type(action) == KB2_ACTION_ALLOCATE_RESOURCES);
     CHECK(kb2_action_resource_set_id(action) == 0);
+    CHECK(kb2_action_sandbox_id(action) == 0);
     CHECK(kb2_action_launch_flags(action) == KB2_LAUNCH_RESET_REQUIRED);
     CHECK(kb2_action_limit(action, KB2_LIMIT_QUEUE_COUNT, &limit) == KB2_STATUS_OK);
     CHECK(limit == 4);
@@ -104,25 +107,38 @@ static int test_start_and_restart(void) {
                                          first_generation + 1,
                                          token,
                                          KB2_STATUS_OK,
-                                         7) == KB2_STATUS_STALE_GENERATION);
+                                         7,
+                                         0) == KB2_STATUS_STALE_GENERATION);
     CHECK(kb2_controller_complete_action(controller,
                                          first_generation,
                                          token + 1,
                                          KB2_STATUS_OK,
-                                         7) == KB2_STATUS_STALE_ACTION);
+                                         7,
+                                         0) == KB2_STATUS_STALE_ACTION);
     CHECK(kb2_action_token(kb2_controller_pending_action(controller)) == token);
 
-    CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 7) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 7, 0) == 0);
     CHECK(kb2_action_resource_set_id(kb2_controller_pending_action(controller)) == 7);
-    CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_TRANSFER_RESOURCES, 0) == 0);
+    CHECK(kb2_action_sandbox_id(kb2_controller_pending_action(controller)) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0, 11) == 0);
+    CHECK(kb2_action_resource_set_id(kb2_controller_pending_action(controller)) == 7);
+    CHECK(kb2_action_sandbox_id(kb2_controller_pending_action(controller)) == 11);
+    CHECK(complete_pending(controller, KB2_ACTION_TRANSFER_RESOURCES, 0, 0) == 0);
     CHECK(kb2_controller_report_ready(controller, first_generation) == KB2_STATUS_OK);
 
     CHECK(kb2_controller_restart(controller) == KB2_STATUS_OK);
-    CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_RESET_RESOURCES, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_TERMINATE_SANDBOX, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0) == 0);
+    CHECK(kb2_action_resource_set_id(kb2_controller_pending_action(controller)) == 7);
+    CHECK(kb2_action_sandbox_id(kb2_controller_pending_action(controller)) == 11);
+    CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0, 0) == 0);
+    CHECK(kb2_action_resource_set_id(kb2_controller_pending_action(controller)) == 7);
+    CHECK(kb2_action_sandbox_id(kb2_controller_pending_action(controller)) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_RESET_RESOURCES, 0, 0) == 0);
+    CHECK(kb2_action_resource_set_id(kb2_controller_pending_action(controller)) == 0);
+    CHECK(kb2_action_sandbox_id(kb2_controller_pending_action(controller)) == 11);
+    CHECK(complete_pending(controller, KB2_ACTION_TERMINATE_SANDBOX, 0, 0) == 0);
+    CHECK(kb2_action_resource_set_id(kb2_controller_pending_action(controller)) == 7);
+    CHECK(kb2_action_sandbox_id(kb2_controller_pending_action(controller)) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0, 0) == 0);
 
     CHECK(kb2_controller_generation(controller) == first_generation + 1);
     CHECK(kb2_action_type(kb2_controller_pending_action(controller)) ==
@@ -130,9 +146,9 @@ static int test_start_and_restart(void) {
     CHECK(kb2_controller_report_ready(controller, first_generation) ==
           KB2_STATUS_STALE_GENERATION);
 
-    CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 8) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_TRANSFER_RESOURCES, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 8, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0, 12) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_TRANSFER_RESOURCES, 0, 0) == 0);
     CHECK(kb2_controller_report_ready(controller, first_generation + 1) == KB2_STATUS_OK);
     CHECK(kb2_controller_state(controller) == KB2_STATE_RUNNING);
 
@@ -145,9 +161,11 @@ static int test_start_and_restart(void) {
     CHECK(kb2_controller_fault_code(controller) == 23);
 
     CHECK(kb2_controller_stop(controller) == KB2_STATUS_OK);
-    CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_RESET_RESOURCES, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0) == 0);
+    CHECK(kb2_action_resource_set_id(kb2_controller_pending_action(controller)) == 8);
+    CHECK(kb2_action_sandbox_id(kb2_controller_pending_action(controller)) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_RESET_RESOURCES, 0, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0, 0) == 0);
     CHECK(kb2_controller_state(controller) == KB2_STATE_IDLE);
     CHECK(kb2_controller_pending_action(controller) == NULL);
 
@@ -169,12 +187,67 @@ static int test_host_action_failure(void) {
                                          kb2_action_generation(action),
                                          kb2_action_token(action),
                                          KB2_STATUS_RESOURCE_DENIED,
+                                         0,
                                          0) == KB2_STATUS_RESOURCE_DENIED);
     CHECK(kb2_controller_state(controller) == KB2_STATE_FAULTED);
     CHECK(kb2_controller_fault_kind(controller) == KB2_FAULT_HOST_ACTION);
     CHECK(kb2_controller_pending_action(controller) == NULL);
     CHECK(kb2_controller_stop(controller) == KB2_STATUS_OK);
     CHECK(kb2_controller_state(controller) == KB2_STATE_IDLE);
+    kb2_controller_destroy(controller);
+    return 0;
+}
+
+static int test_action_completion_validation(void) {
+    const kb2_action_t *action;
+    kb2_controller_t *controller = NULL;
+
+    CHECK(kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) ==
+          KB2_STATUS_OK);
+    CHECK(configure_controller(controller) == 0);
+    CHECK(kb2_controller_start(controller) == KB2_STATUS_OK);
+    action = kb2_controller_pending_action(controller);
+    CHECK(action != NULL);
+    CHECK(kb2_controller_complete_action(controller,
+                                         kb2_action_generation(action),
+                                         kb2_action_token(action),
+                                         KB2_STATUS_OK,
+                                         0,
+                                         0) == KB2_STATUS_INVALID_ARGUMENT);
+    CHECK(kb2_controller_complete_action(controller,
+                                         kb2_action_generation(action),
+                                         kb2_action_token(action),
+                                         KB2_STATUS_HOST_FAILURE,
+                                         1,
+                                         0) == KB2_STATUS_INVALID_ARGUMENT);
+    CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 7, 0) == 0);
+    action = kb2_controller_pending_action(controller);
+    CHECK(kb2_controller_complete_action(controller,
+                                         kb2_action_generation(action),
+                                         kb2_action_token(action),
+                                         KB2_STATUS_OK,
+                                         7,
+                                         11) == KB2_STATUS_INVALID_ARGUMENT);
+    CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0, 11) == 0);
+    action = kb2_controller_pending_action(controller);
+    CHECK(kb2_controller_complete_action(controller,
+                                         kb2_action_generation(action),
+                                         kb2_action_token(action),
+                                         KB2_STATUS_OK,
+                                         7,
+                                         0) == KB2_STATUS_INVALID_ARGUMENT);
+    CHECK(kb2_controller_complete_action(controller,
+                                         kb2_action_generation(action),
+                                         kb2_action_token(action),
+                                         KB2_STATUS_HOST_FAILURE,
+                                         0,
+                                         0) == KB2_STATUS_HOST_FAILURE);
+    CHECK(kb2_controller_stop(controller) == KB2_STATUS_OK);
+    CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_RESET_RESOURCES, 0, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_TERMINATE_SANDBOX, 0, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0, 0) == 0);
+
     kb2_controller_destroy(controller);
     return 0;
 }
@@ -189,17 +262,17 @@ static int test_stop_without_resource_reset(void) {
     CHECK(kb2_controller_set_launch_flags(controller, 0) == KB2_STATUS_OK);
     CHECK(kb2_controller_start(controller) == KB2_STATUS_OK);
     generation = kb2_controller_generation(controller);
-    CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 9) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_TRANSFER_RESOURCES, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 9, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0, 13) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_TRANSFER_RESOURCES, 0, 0) == 0);
     CHECK(kb2_controller_report_ready(controller, generation) == KB2_STATUS_OK);
 
     CHECK(kb2_controller_stop(controller) == KB2_STATUS_OK);
-    CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0, 0) == 0);
     CHECK(kb2_action_type(kb2_controller_pending_action(controller)) ==
           KB2_ACTION_TERMINATE_SANDBOX);
-    CHECK(complete_pending(controller, KB2_ACTION_TERMINATE_SANDBOX, 0) == 0);
-    CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_TERMINATE_SANDBOX, 0, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0, 0) == 0);
     CHECK(kb2_controller_state(controller) == KB2_STATE_IDLE);
 
     kb2_controller_destroy(controller);
@@ -210,6 +283,7 @@ int main(void) {
     CHECK(test_configuration_rejection() == 0);
     CHECK(test_start_and_restart() == 0);
     CHECK(test_host_action_failure() == 0);
+    CHECK(test_action_completion_validation() == 0);
     CHECK(test_stop_without_resource_reset() == 0);
     return 0;
 }

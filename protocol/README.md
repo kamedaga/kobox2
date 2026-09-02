@@ -9,3 +9,12 @@ SPDX-License-Identifier: MIT
 
 All schemas are `dev`. They have no ABI version number or compatibility
 guarantee until an explicit freeze.
+
+`schema/transport.json` is canonical. Its digest is SHA-256 over its RFC 8785
+representation. `tools/generate_protocol.py` validates it and produces the
+checked-in layout constants. The build rejects a stale generated header. The
+public codec reads and writes bounded little-endian byte ranges without mapping
+native structures onto wire data.
+
+The `kobox2_protocol` library target is independent of the controller library
+and is the only kobox2 target linked into the test sandbox process.

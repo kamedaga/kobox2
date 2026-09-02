@@ -21,6 +21,7 @@ struct kb2_action {
     uint64_t token;
     uint64_t generation;
     uint64_t resource_set_id;
+    uint64_t sandbox_id;
     struct kb2_configuration configuration;
 };
 
@@ -35,6 +36,7 @@ struct kb2_controller {
     uint64_t generation;
     uint64_t next_token;
     uint64_t resource_set_id;
+    uint64_t sandbox_id;
     int action_pending;
     int resources_allocated;
     int resources_revoked;
@@ -80,7 +82,27 @@ static kb2_status_t kb2_emit_action(kb2_controller_t *controller, kb2_action_typ
     controller->action.type = type;
     controller->action.token = controller->next_token;
     controller->action.generation = controller->generation;
-    controller->action.resource_set_id = controller->resource_set_id;
+    controller->action.resource_set_id = 0;
+    controller->action.sandbox_id = 0;
+    switch (type) {
+    case KB2_ACTION_LAUNCH_SANDBOX:
+    case KB2_ACTION_RESET_RESOURCES:
+    case KB2_ACTION_RELEASE_RESOURCES:
+        controller->action.resource_set_id = controller->resource_set_id;
+        break;
+    case KB2_ACTION_TRANSFER_RESOURCES:
+    case KB2_ACTION_REVOKE_RESOURCES:
+        controller->action.resource_set_id = controller->resource_set_id;
+        controller->action.sandbox_id = controller->sandbox_id;
+        break;
+    case KB2_ACTION_TERMINATE_SANDBOX:
+        controller->action.sandbox_id = controller->sandbox_id;
+        break;
+    case KB2_ACTION_ALLOCATE_RESOURCES:
+    case KB2_ACTION_NONE:
+    default:
+        break;
+    }
     controller->action.configuration = controller->configuration;
     controller->action_pending = 1;
     return KB2_STATUS_OK;
@@ -138,6 +160,7 @@ static kb2_status_t kb2_begin_start(kb2_controller_t *controller) {
     controller->fault_kind = KB2_FAULT_NONE;
     controller->fault_code = 0;
     controller->resource_set_id = 0;
+    controller->sandbox_id = 0;
     controller->resources_allocated = 0;
     controller->resources_revoked = 0;
     controller->resources_reset = 0;
@@ -317,6 +340,10 @@ uint64_t kb2_action_resource_set_id(const kb2_action_t *action) {
     return action == NULL ? 0 : action->resource_set_id;
 }
 
+uint64_t kb2_action_sandbox_id(const kb2_action_t *action) {
+    return action == NULL ? 0 : action->sandbox_id;
+}
+
 uint32_t kb2_action_launch_flags(const kb2_action_t *action) {
     return action == NULL ? 0 : action->configuration.flags;
 }
@@ -388,7 +415,8 @@ kb2_status_t kb2_controller_complete_action(kb2_controller_t *controller,
                                             uint64_t generation,
                                             uint64_t token,
                                             kb2_status_t result,
-                                            uint64_t resource_set_id) {
+                                            uint64_t resource_set_id,
+                                            uint64_t sandbox_id) {
     kb2_action_type_t completed;
 
     if (controller == NULL || !kb2_action_result_valid(result)) {
@@ -403,12 +431,28 @@ kb2_status_t kb2_controller_complete_action(kb2_controller_t *controller,
     if (token != controller->action.token) {
         return KB2_STATUS_STALE_ACTION;
     }
-    if (controller->action.type == KB2_ACTION_ALLOCATE_RESOURCES) {
-        if (result == KB2_STATUS_OK && resource_set_id == 0) {
+    if (result != KB2_STATUS_OK) {
+        if (resource_set_id != 0 || sandbox_id != 0) {
             return KB2_STATUS_INVALID_ARGUMENT;
         }
-    } else if (resource_set_id != 0) {
-        return KB2_STATUS_INVALID_ARGUMENT;
+    } else {
+        switch (controller->action.type) {
+        case KB2_ACTION_ALLOCATE_RESOURCES:
+            if (resource_set_id == 0 || sandbox_id != 0) {
+                return KB2_STATUS_INVALID_ARGUMENT;
+            }
+            break;
+        case KB2_ACTION_LAUNCH_SANDBOX:
+            if (resource_set_id != 0 || sandbox_id == 0) {
+                return KB2_STATUS_INVALID_ARGUMENT;
+            }
+            break;
+        default:
+            if (resource_set_id != 0 || sandbox_id != 0) {
+                return KB2_STATUS_INVALID_ARGUMENT;
+            }
+            break;
+        }
     }
 
     completed = controller->action.type;
@@ -426,6 +470,7 @@ kb2_status_t kb2_controller_complete_action(kb2_controller_t *controller,
         controller->resources_allocated = 1;
         return kb2_emit_action(controller, KB2_ACTION_LAUNCH_SANDBOX);
     case KB2_ACTION_LAUNCH_SANDBOX:
+        controller->sandbox_id = sandbox_id;
         controller->process_started = 1;
         return kb2_emit_action(controller, KB2_ACTION_TRANSFER_RESOURCES);
     case KB2_ACTION_TRANSFER_RESOURCES:
@@ -439,6 +484,7 @@ kb2_status_t kb2_controller_complete_action(kb2_controller_t *controller,
         return kb2_next_cleanup_action(controller);
     case KB2_ACTION_TERMINATE_SANDBOX:
         controller->process_started = 0;
+        controller->sandbox_id = 0;
         return kb2_next_cleanup_action(controller);
     case KB2_ACTION_RELEASE_RESOURCES:
         controller->resources_allocated = 0;
@@ -491,6 +537,7 @@ kb2_status_t kb2_controller_report_fault(kb2_controller_t *controller,
 
     if (kind == KB2_FAULT_PROCESS_EXIT) {
         controller->process_started = 0;
+        controller->sandbox_id = 0;
     }
     controller->state = KB2_STATE_FAULTED;
     controller->fault_kind = kind;

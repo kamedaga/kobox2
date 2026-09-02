@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 #include <kobox2/closure.h>
+#include <kobox2/protocol.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,6 +84,8 @@ static int test_valid_closure(void) {
     kb2_closure_builder_t *builder = NULL;
     kb2_closure_t *closure = NULL;
     uint8_t digest[KB2_DIGEST_SIZE];
+    uint8_t interface_digest[KB2_DIGEST_SIZE];
+    uint8_t decoded_interface_digest[KB2_DIGEST_SIZE];
     uint32_t node_id;
     uint32_t slot_id;
     uint32_t minimum_count;
@@ -94,6 +97,8 @@ static int test_valid_closure(void) {
     kb2_resource_type_t resource_type;
     int is_root;
 
+    CHECK(kb2_protocol_copy_schema_digest(interface_digest, sizeof(interface_digest)) ==
+          KB2_PROTOCOL_OK);
     CHECK(create_builder(&builder) == KB2_STATUS_OK);
     CHECK(add_node(builder, 20, KB2_ARTIFACT_RELOCATABLE_MODULE, "driver", 1) ==
           KB2_STATUS_OK);
@@ -123,6 +128,8 @@ static int test_valid_closure(void) {
     CHECK(kb2_closure_builder_add_resource(builder,
                                            7,
                                            KB2_RESOURCE_DEVICE,
+                                           interface_digest,
+                                           sizeof(interface_digest),
                                            1,
                                            1,
                                            KB2_DEVICE_RIGHT_COMMAND,
@@ -133,6 +140,8 @@ static int test_valid_closure(void) {
     CHECK(kb2_closure_builder_add_resource(builder,
                                            8,
                                            KB2_RESOURCE_MEMORY,
+                                           interface_digest,
+                                           sizeof(interface_digest),
                                            1,
                                            4,
                                            KB2_MEMORY_RIGHT_READ,
@@ -167,6 +176,8 @@ static int test_valid_closure(void) {
                                0,
                                &slot_id,
                                &resource_type,
+                               decoded_interface_digest,
+                               sizeof(decoded_interface_digest),
                                &minimum_count,
                                &maximum_count,
                                &required_rights,
@@ -175,7 +186,8 @@ static int test_valid_closure(void) {
     CHECK(slot_id == 7 && resource_type == KB2_RESOURCE_DEVICE && minimum_count == 1 &&
           maximum_count == 1 && required_rights == KB2_DEVICE_RIGHT_COMMAND &&
           maximum_rights == (KB2_DEVICE_RIGHT_COMMAND | KB2_DEVICE_RIGHT_MAP) &&
-          flags == (KB2_RESOURCE_REQUIRED | KB2_RESOURCE_RESET_REQUIRED));
+          flags == (KB2_RESOURCE_REQUIRED | KB2_RESOURCE_RESET_REQUIRED) &&
+          memcmp(decoded_interface_digest, interface_digest, sizeof(interface_digest)) == 0);
     CHECK(kb2_closure_resource_binding(closure, 2, &slot_id, &node_id) == KB2_STATUS_OK);
     CHECK(slot_id == 8 && node_id == 20);
     kb2_closure_destroy(closure);
@@ -259,7 +271,11 @@ static int test_symbol_binding_validation(void) {
 static int test_resource_validation(void) {
     kb2_closure_builder_t *builder = NULL;
     kb2_closure_t *closure = NULL;
+    uint8_t interface_digest[KB2_DIGEST_SIZE];
+    uint8_t zero_digest[KB2_DIGEST_SIZE] = {0};
 
+    CHECK(kb2_protocol_copy_schema_digest(interface_digest, sizeof(interface_digest)) ==
+          KB2_PROTOCOL_OK);
     CHECK(create_builder(&builder) == KB2_STATUS_OK);
     CHECK(add_node(builder, 1, KB2_ARTIFACT_RELOCATABLE_MODULE, "root", 1) ==
           KB2_STATUS_OK);
@@ -269,6 +285,8 @@ static int test_resource_validation(void) {
     CHECK(kb2_closure_builder_add_resource(builder,
                                            1,
                                            KB2_RESOURCE_DEVICE,
+                                           interface_digest,
+                                           sizeof(interface_digest),
                                            1,
                                            1,
                                            KB2_DEVICE_RIGHT_COMMAND,
@@ -280,10 +298,23 @@ static int test_resource_validation(void) {
     CHECK(kb2_closure_builder_add_resource(builder,
                                            2,
                                            KB2_RESOURCE_DEVICE,
+                                           interface_digest,
+                                           sizeof(interface_digest),
                                            1,
                                            1,
                                            KB2_DEVICE_RIGHT_COMMAND,
                                            UINT64_C(1) << 40,
+                                           KB2_RESOURCE_REQUIRED) ==
+          KB2_STATUS_INVALID_CONFIGURATION);
+    CHECK(kb2_closure_builder_add_resource(builder,
+                                           3,
+                                           KB2_RESOURCE_DEVICE,
+                                           zero_digest,
+                                           sizeof(zero_digest),
+                                           1,
+                                           1,
+                                           KB2_DEVICE_RIGHT_COMMAND,
+                                           KB2_DEVICE_RIGHT_COMMAND,
                                            KB2_RESOURCE_REQUIRED) ==
           KB2_STATUS_INVALID_CONFIGURATION);
     kb2_closure_builder_destroy(builder);

@@ -34,7 +34,8 @@ static int configure_controller(kb2_controller_t *controller, const kb2_test_hos
     if (!kb2_test_configure_fixture_closure(controller,
                                             host->manifest_digest,
                                             host->artifact_digests[0],
-                                            host->artifact_digests[1])) {
+                                            host->artifact_digests[1],
+                                            host->artifact_digests[2])) {
         return 0;
     }
     for (kind = KB2_DIGEST_PROFILE; kind < KB2_DIGEST_CHANNEL_SET; ++kind) {
@@ -130,7 +131,8 @@ static int stop_and_release(kb2_controller_t *controller, kb2_test_host_t *host)
 
 static int run_transport_and_normal_restart(const char *sandbox_path,
                                             const char *core_path,
-                                            const char *module_path) {
+                                            const char *provider_path,
+                                            const char *consumer_path) {
     kb2_controller_t *controller = NULL;
     kb2_test_host_t host;
     uint64_t first_generation;
@@ -146,7 +148,8 @@ static int run_transport_and_normal_restart(const char *sandbox_path,
     size_t batch;
     int success = 0;
 
-    if (!kb2_test_host_initialize(&host, sandbox_path, core_path, module_path)) {
+    if (!kb2_test_host_initialize(
+            &host, sandbox_path, core_path, provider_path, consumer_path)) {
         return 0;
     }
     if (kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) !=
@@ -239,7 +242,8 @@ finish:
 
 static int run_fault_restart(const char *sandbox_path,
                              const char *core_path,
-                             const char *module_path,
+                             const char *provider_path,
+                             const char *consumer_path,
                              kb2_test_fault_scenario_t scenario,
                              kb2_fault_kind_t expected_fault_kind) {
     kb2_controller_t *controller = NULL;
@@ -252,7 +256,8 @@ static int run_fault_restart(const char *sandbox_path,
     uint32_t first_notification_ids[KB2_TEST_NOTIFICATION_COUNT];
     int success = 0;
 
-    if (!kb2_test_host_initialize(&host, sandbox_path, core_path, module_path)) {
+    if (!kb2_test_host_initialize(
+            &host, sandbox_path, core_path, provider_path, consumer_path)) {
         return 0;
     }
     if (kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) !=
@@ -313,17 +318,21 @@ int main(int argument_count, char **arguments) {
     };
     size_t index;
 
-    if (argument_count != 4) {
-        fprintf(stderr, "usage: %s SANDBOX_CHILD CORE_SO MODULE_KO\n", arguments[0]);
+    if (argument_count != 5) {
+        fprintf(stderr,
+                "usage: %s SANDBOX_CHILD CORE_SO PROVIDER_KO CONSUMER_KO\n",
+                arguments[0]);
         return 2;
     }
-    if (!run_transport_and_normal_restart(arguments[1], arguments[2], arguments[3])) {
+    if (!run_transport_and_normal_restart(
+            arguments[1], arguments[2], arguments[3], arguments[4])) {
         return 1;
     }
     for (index = 0; index < sizeof(fault_scenarios) / sizeof(fault_scenarios[0]); ++index) {
         if (!run_fault_restart(arguments[1],
                                arguments[2],
                                arguments[3],
+                               arguments[4],
                                fault_scenarios[index].scenario,
                                fault_scenarios[index].kind)) {
             return 1;

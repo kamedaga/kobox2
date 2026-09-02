@@ -58,6 +58,7 @@ typedef struct kb2_closure_manifest_resource {
     uint64_t required_rights;
     uint64_t maximum_rights;
     uint32_t flags;
+    uint8_t interface_schema_digest[KB2_CLOSURE_SCHEMA_DIGEST_SIZE];
 } kb2_closure_manifest_resource_t;
 
 typedef struct kb2_closure_manifest_binding {

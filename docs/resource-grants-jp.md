@@ -40,7 +40,8 @@ manifestのminimum以上maximum以下です。required slotは`PRESENT`です。
 ## objectとrights
 
 各grant objectはnonzero 64-bit object IDと64-bit granted rightsを持ちます。object IDはgrant set内で
-一意で、そのgeneration中だけ有効です。新しいgenerationには新しいobject IDを割り当てます。
+一意でcanonical object table全体を通して増加し、そのgeneration中だけ有効です。新しいgenerationには
+新しいobject IDを割り当てます。
 
 各present objectは次を満たします。
 
@@ -94,8 +95,9 @@ native handle bindingはobject ID、interfaceが定義するrole、transfer hand
 objectはinterface schemaが定義する個数のhandleを持てます。roleはobject内で一意で、transfer indexは
 完全な一つのcanonical sequenceを構成します。
 
-handle indexはnative handle値から独立しています。Linuxは受信した`SCM_RIGHTS` descriptor配列のindexへ
-対応させます。他のhostはnative handle transfer tableへ対応させます。
+handle indexはnative handle値から独立し、resource handle転送列内のzero-based indexです。Linuxは
+受信した`SCM_RIGHTS` descriptor配列の該当部分から解決します。他のhostはnative handle transfer
+tableから解決します。
 
 Linuxの転送順は次です。
 

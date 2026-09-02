@@ -9,19 +9,19 @@ Closure tests cover DAG reachability, cycles, explicit symbol binding,
 resource rights, sharing, sealing, and immutable inspection.
 
 On Linux, the test host starts a separate sandbox process and transfers one
-shared-memory object, one canonical closure manifest, its immutable artifact
-objects, and four eventfds over a bootstrap socket. The sandbox verifies the
-manifest and every artifact digest before reporting `READY`. Split
+shared-memory object, one canonical closure manifest, one canonical resource
+grant set, its immutable artifact objects, one resource handle, and four
+eventfds over a bootstrap socket. The sandbox verifies both schemas, both
+digests, the manifest/grant binding, every artifact digest, and the resource
+handle mapping before reporting `READY`. Split
 virtqueues carry request completions and lifecycle events without polling. The
 tests cover direct and indirect descriptors, `EVENT_IDX`, wrap-around, region
 rights, malformed input, quiesce, deterministic process faults, pidfd-confirmed
 exit, revocation, reset, reap, and regeneration. Device-specific acceptance tests
 remain in the host OS repository.
 
-The GPL sandbox fixture follows the manifest dependency order, loads
-`fixture_core.so` and relocates an ET_REL `fixture_module.ko` from transferred
-objects, resolves the declared import from the explicit provider namespace,
-and invokes init, quiesce, and cleanup in graph order.
-The module exercises allocation, locking, wait/wake, two native threads,
-per-CPU state, an RCU grace period, and monotonic time before returning its
-result through the request virtqueue.
+The GPL sandbox conformance target consists of `fixture_core.so`,
+`fixture_provider.ko`, and `fixture_consumer.ko`. Tests cover dependency and
+symbol resolution, resource visibility and rights, native threads, per-CPU
+state, RCU, time, reverse lifecycle order, init rollback, the exact export set,
+stale generations, and fault/restart.

@@ -4,6 +4,7 @@
 
 #include <kobox2/closure_manifest.h>
 #include <kobox2/protocol.h>
+#include <kobox2/resource_grant.h>
 #include <kobox2/sha256.h>
 
 #include <kobox2_test/bootstrap.h>
@@ -124,18 +125,36 @@ static void wait_for_kill(void) {
     }
 }
 
+static int sealed_regular_file(int descriptor, uint64_t expected_size) {
+    const int required_seals =
+        F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE;
+    struct stat status;
+    int seals = fcntl(descriptor, F_GET_SEALS);
+
+    return seals >= 0 && (seals & required_seals) == required_seals &&
+           fstat(descriptor, &status) == 0 && S_ISREG(status.st_mode) &&
+           status.st_size >= 0 && (uint64_t)status.st_size == expected_size;
+}
+
 static int validate_closure_package(const kb2_test_bootstrap_t *bootstrap,
                                     const int *file_descriptors) {
     kb2_closure_manifest_t manifest;
-    struct stat status;
+    kb2_resource_grant_t grant;
+    kb2_resource_grant_slot_t slot;
+    kb2_resource_grant_object_t object;
+    kb2_resource_grant_handle_binding_t binding;
+    struct stat resource_status;
+    struct stat transport_status;
     uint8_t digest[KB2_SHA256_DIGEST_SIZE];
+    uint8_t interface_digest[KB2_SHA256_DIGEST_SIZE];
     void *manifest_bytes = MAP_FAILED;
+    void *grant_bytes = MAP_FAILED;
+    size_t resource_base = KB2_TEST_BASE_TRANSFER_FD_COUNT + bootstrap->artifact_count;
     size_t index;
     int result = 0;
 
-    if (bootstrap->manifest_size > SIZE_MAX ||
-        fstat(file_descriptors[1], &status) != 0 || status.st_size < 0 ||
-        (uint64_t)status.st_size != bootstrap->manifest_size) {
+    if (bootstrap->manifest_size > SIZE_MAX || bootstrap->grant_size > SIZE_MAX ||
+        !sealed_regular_file(file_descriptors[1], bootstrap->manifest_size)) {
         return 0;
     }
     manifest_bytes = mmap(NULL,
@@ -147,6 +166,18 @@ static int validate_closure_package(const kb2_test_bootstrap_t *bootstrap,
     if (manifest_bytes == MAP_FAILED) {
         return 0;
     }
+    if (!sealed_regular_file(file_descriptors[2], bootstrap->grant_size)) {
+        goto finish;
+    }
+    grant_bytes = mmap(NULL,
+                       (size_t)bootstrap->grant_size,
+                       PROT_READ,
+                       MAP_PRIVATE,
+                       file_descriptors[2],
+                       0);
+    if (grant_bytes == MAP_FAILED) {
+        goto finish;
+    }
     kb2_sha256(manifest_bytes, (size_t)bootstrap->manifest_size, digest);
     if (memcmp(digest, bootstrap->manifest_digest, sizeof(digest)) != 0 ||
         kb2_closure_manifest_decode(manifest_bytes,
@@ -155,14 +186,48 @@ static int validate_closure_package(const kb2_test_bootstrap_t *bootstrap,
         kb2_closure_manifest_artifact_count(&manifest) != bootstrap->artifact_count) {
         goto finish;
     }
+    kb2_sha256(grant_bytes, (size_t)bootstrap->grant_size, digest);
+    if (memcmp(digest, bootstrap->grant_digest, sizeof(digest)) != 0 ||
+        kb2_resource_grant_decode(
+            grant_bytes, (size_t)bootstrap->grant_size, &grant) != KB2_PROTOCOL_OK ||
+        grant.generation != bootstrap->generation ||
+        kb2_resource_grant_validate_manifest(&grant, &manifest) != KB2_PROTOCOL_OK ||
+        kb2_resource_grant_slot_count(&grant) != 1 ||
+        kb2_resource_grant_object_count(&grant) != 1 ||
+        kb2_resource_grant_handle_binding_count(&grant) !=
+            bootstrap->resource_handle_count ||
+        kb2_resource_grant_slot(&grant, 0, &slot) != KB2_PROTOCOL_OK ||
+        kb2_resource_grant_object(&grant, 0, &object) != KB2_PROTOCOL_OK ||
+        kb2_resource_grant_handle_binding(&grant, 0, &binding) != KB2_PROTOCOL_OK ||
+        kb2_protocol_copy_schema_digest(interface_digest, sizeof(interface_digest)) !=
+            KB2_PROTOCOL_OK ||
+        slot.slot_id != 1 || slot.resource_type != KB2_CLOSURE_RESOURCE_CHANNEL ||
+        slot.state != KB2_RESOURCE_GRANT_SLOT_PRESENT || slot.object_count != 1 ||
+        memcmp(slot.interface_schema_digest,
+               interface_digest,
+               sizeof(interface_digest)) != 0 ||
+        object.slot_id != slot.slot_id || object.object_id != binding.object_id ||
+        object.granted_rights != (KB2_CLOSURE_CHANNEL_RIGHT_SEND |
+                                  KB2_CLOSURE_CHANNEL_RIGHT_RECEIVE) ||
+        object.handle_count != 1 ||
+        binding.role != KB2_PROTOCOL_NATIVE_HANDLE_ROLE_MEMORY ||
+        binding.transfer_handle_index != 0 ||
+        fstat(file_descriptors[0], &transport_status) != 0 ||
+        fstat(file_descriptors[resource_base + binding.transfer_handle_index],
+              &resource_status) != 0 ||
+        transport_status.st_dev != resource_status.st_dev ||
+        transport_status.st_ino != resource_status.st_ino) {
+        goto finish;
+    }
     for (index = 0; index < bootstrap->artifact_count; ++index) {
         kb2_closure_manifest_artifact_t artifact;
         void *artifact_bytes = MAP_FAILED;
 
         if (kb2_closure_manifest_artifact(&manifest, index, &artifact) != KB2_PROTOCOL_OK ||
             artifact.content_size > SIZE_MAX ||
-            fstat(file_descriptors[KB2_TEST_BASE_TRANSFER_FD_COUNT + index], &status) != 0 ||
-            status.st_size < 0 || (uint64_t)status.st_size != artifact.content_size) {
+            !sealed_regular_file(
+                file_descriptors[KB2_TEST_BASE_TRANSFER_FD_COUNT + index],
+                artifact.content_size)) {
             goto finish;
         }
         artifact_bytes = mmap(NULL,
@@ -183,6 +248,9 @@ static int validate_closure_package(const kb2_test_bootstrap_t *bootstrap,
     result = 1;
 
 finish:
+    if (grant_bytes != MAP_FAILED) {
+        munmap(grant_bytes, (size_t)bootstrap->grant_size);
+    }
     munmap(manifest_bytes, (size_t)bootstrap->manifest_size);
     return result;
 }
@@ -228,7 +296,8 @@ int main(void) {
         goto finish;
     }
     stage = 2;
-    notification_base = KB2_TEST_BASE_TRANSFER_FD_COUNT + bootstrap.artifact_count;
+    notification_base = KB2_TEST_BASE_TRANSFER_FD_COUNT + bootstrap.artifact_count +
+                        bootstrap.resource_handle_count;
     close(KB2_TEST_BOOTSTRAP_FD);
     for (index = 0; index < file_descriptor_count; ++index) {
         descriptor_flags = fcntl(file_descriptors[index], F_GETFD);

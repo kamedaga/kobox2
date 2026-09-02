@@ -12,6 +12,7 @@ int kb2_test_configure_closure_with_reset(kb2_controller_t *controller, int rese
 int kb2_test_configure_fixture_closure(kb2_controller_t *controller,
                                        const uint8_t manifest_digest[KB2_DIGEST_SIZE],
                                        const uint8_t core_digest[KB2_DIGEST_SIZE],
-                                       const uint8_t module_digest[KB2_DIGEST_SIZE]);
+                                       const uint8_t provider_digest[KB2_DIGEST_SIZE],
+                                       const uint8_t consumer_digest[KB2_DIGEST_SIZE]);
 
 #endif

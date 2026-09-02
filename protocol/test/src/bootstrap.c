@@ -10,19 +10,23 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define KB2_TEST_BOOTSTRAP_SIZE 128u
+#define KB2_TEST_BOOTSTRAP_SIZE 160u
 #define KB2_TEST_BOOTSTRAP_MAGIC "kb2boot\0"
 #define KB2_TEST_BOOTSTRAP_MAGIC_SIZE 8u
 #define KB2_TEST_BOOTSTRAP_GENERATION_OFFSET 8u
 #define KB2_TEST_BOOTSTRAP_SHARED_SIZE_OFFSET 16u
 #define KB2_TEST_BOOTSTRAP_MANIFEST_SIZE_OFFSET 24u
-#define KB2_TEST_BOOTSTRAP_DESCRIPTOR_SIZE_OFFSET 32u
-#define KB2_TEST_BOOTSTRAP_ARTIFACT_COUNT_OFFSET 36u
-#define KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET 40u
-#define KB2_TEST_BOOTSTRAP_DESCRIPTOR_COUNT_OFFSET 44u
-#define KB2_TEST_BOOTSTRAP_MANIFEST_DIGEST_OFFSET 48u
-#define KB2_TEST_BOOTSTRAP_NOTIFICATION_IDS_OFFSET 80u
-#define KB2_TEST_BOOTSTRAP_RESERVED_OFFSET 96u
+#define KB2_TEST_BOOTSTRAP_GRANT_SIZE_OFFSET 32u
+#define KB2_TEST_BOOTSTRAP_DESCRIPTOR_SIZE_OFFSET 40u
+#define KB2_TEST_BOOTSTRAP_ARTIFACT_COUNT_OFFSET 44u
+#define KB2_TEST_BOOTSTRAP_RESOURCE_HANDLE_COUNT_OFFSET 48u
+#define KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET 52u
+#define KB2_TEST_BOOTSTRAP_DESCRIPTOR_COUNT_OFFSET 56u
+#define KB2_TEST_BOOTSTRAP_RESERVED_0_OFFSET 60u
+#define KB2_TEST_BOOTSTRAP_MANIFEST_DIGEST_OFFSET 64u
+#define KB2_TEST_BOOTSTRAP_GRANT_DIGEST_OFFSET 96u
+#define KB2_TEST_BOOTSTRAP_NOTIFICATION_IDS_OFFSET 128u
+#define KB2_TEST_BOOTSTRAP_RESERVED_OFFSET 144u
 
 static void kb2_test_store_u32(uint8_t *destination, uint32_t value) {
     destination[0] = (uint8_t)value;
@@ -79,11 +83,12 @@ static int kb2_test_notification_ids_valid(const uint32_t *notification_ids) {
 size_t kb2_test_bootstrap_descriptor_count(const kb2_test_bootstrap_t *bootstrap) {
     if (bootstrap == NULL || bootstrap->artifact_count == 0 ||
         bootstrap->artifact_count > KB2_TEST_MAX_ARTIFACT_COUNT ||
+        bootstrap->resource_handle_count > KB2_TEST_MAX_RESOURCE_HANDLE_COUNT ||
         bootstrap->notification_count != KB2_TEST_NOTIFICATION_COUNT) {
         return 0;
     }
     return KB2_TEST_BASE_TRANSFER_FD_COUNT + bootstrap->artifact_count +
-           bootstrap->notification_count;
+           bootstrap->resource_handle_count + bootstrap->notification_count;
 }
 
 int kb2_test_send_bootstrap(int socket_fd,
@@ -109,7 +114,8 @@ int kb2_test_send_bootstrap(int socket_fd,
     if (socket_fd < 0 || bootstrap == NULL || file_descriptors == NULL ||
         file_descriptor_count != kb2_test_bootstrap_descriptor_count(bootstrap) ||
         bootstrap->generation == 0 || bootstrap->shared_memory_size == 0 ||
-        bootstrap->manifest_size == 0 || bootstrap->channel_descriptor_size == 0 ||
+        bootstrap->manifest_size == 0 || bootstrap->grant_size == 0 ||
+        bootstrap->channel_descriptor_size == 0 ||
         bootstrap->channel_descriptor_size > bootstrap->shared_memory_size ||
         !kb2_test_notification_ids_valid(bootstrap->notification_ids)) {
         return 0;
@@ -127,10 +133,14 @@ int kb2_test_send_bootstrap(int socket_fd,
                        bootstrap->shared_memory_size);
     kb2_test_store_u64(message + KB2_TEST_BOOTSTRAP_MANIFEST_SIZE_OFFSET,
                        bootstrap->manifest_size);
+    kb2_test_store_u64(message + KB2_TEST_BOOTSTRAP_GRANT_SIZE_OFFSET,
+                       bootstrap->grant_size);
     kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_SIZE_OFFSET,
                        bootstrap->channel_descriptor_size);
     kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_ARTIFACT_COUNT_OFFSET,
                        bootstrap->artifact_count);
+    kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_RESOURCE_HANDLE_COUNT_OFFSET,
+                       bootstrap->resource_handle_count);
     kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET,
                        bootstrap->notification_count);
     kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_COUNT_OFFSET,
@@ -138,6 +148,9 @@ int kb2_test_send_bootstrap(int socket_fd,
     memcpy(message + KB2_TEST_BOOTSTRAP_MANIFEST_DIGEST_OFFSET,
            bootstrap->manifest_digest,
            sizeof(bootstrap->manifest_digest));
+    memcpy(message + KB2_TEST_BOOTSTRAP_GRANT_DIGEST_OFFSET,
+           bootstrap->grant_digest,
+           sizeof(bootstrap->grant_digest));
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {
         kb2_test_store_u32(message + KB2_TEST_BOOTSTRAP_NOTIFICATION_IDS_OFFSET + index * 4u,
                            bootstrap->notification_ids[index]);
@@ -241,22 +254,31 @@ int kb2_test_receive_bootstrap(int socket_fd,
         kb2_test_load_u64(message + KB2_TEST_BOOTSTRAP_SHARED_SIZE_OFFSET);
     bootstrap_out->manifest_size =
         kb2_test_load_u64(message + KB2_TEST_BOOTSTRAP_MANIFEST_SIZE_OFFSET);
+    bootstrap_out->grant_size =
+        kb2_test_load_u64(message + KB2_TEST_BOOTSTRAP_GRANT_SIZE_OFFSET);
     bootstrap_out->channel_descriptor_size =
         kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_SIZE_OFFSET);
     bootstrap_out->artifact_count =
         kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_ARTIFACT_COUNT_OFFSET);
+    bootstrap_out->resource_handle_count =
+        kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_RESOURCE_HANDLE_COUNT_OFFSET);
     bootstrap_out->notification_count =
         kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_NOTIFICATION_COUNT_OFFSET);
     memcpy(bootstrap_out->manifest_digest,
            message + KB2_TEST_BOOTSTRAP_MANIFEST_DIGEST_OFFSET,
            sizeof(bootstrap_out->manifest_digest));
+    memcpy(bootstrap_out->grant_digest,
+           message + KB2_TEST_BOOTSTRAP_GRANT_DIGEST_OFFSET,
+           sizeof(bootstrap_out->grant_digest));
     if (bootstrap_out->generation == 0 || bootstrap_out->shared_memory_size == 0 ||
         bootstrap_out->manifest_size == 0 ||
+        bootstrap_out->grant_size == 0 ||
         bootstrap_out->channel_descriptor_size == 0 ||
         bootstrap_out->channel_descriptor_size > bootstrap_out->shared_memory_size ||
         descriptor_count != kb2_test_bootstrap_descriptor_count(bootstrap_out) ||
         descriptor_count !=
-            kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_COUNT_OFFSET)) {
+            kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_DESCRIPTOR_COUNT_OFFSET) ||
+        kb2_test_load_u32(message + KB2_TEST_BOOTSTRAP_RESERVED_0_OFFSET) != 0) {
         goto invalid;
     }
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {

@@ -28,7 +28,8 @@ static int configure(kb2_controller_t *controller, const kb2_test_host_t *host) 
     if (!kb2_test_configure_fixture_closure(controller,
                                             host->manifest_digest,
                                             host->artifact_digests[0],
-                                            host->artifact_digests[1])) {
+                                            host->artifact_digests[1],
+                                            host->artifact_digests[2])) {
         return 0;
     }
     for (kind = KB2_DIGEST_PROFILE; kind < KB2_DIGEST_CHANNEL_SET; ++kind) {
@@ -83,17 +84,35 @@ static int drive(kb2_controller_t *controller, kb2_test_host_t *host) {
 }
 
 int main(int argument_count, char **arguments) {
+    static const struct {
+        kb2_test_fault_scenario_t scenario;
+        kb2_fault_kind_t kind;
+    } fault_scenarios[] = {
+        {KB2_TEST_FAULT_KILL_BEFORE_ACQUIRE, KB2_FAULT_PROCESS_EXIT},
+        {KB2_TEST_FAULT_KILL_AFTER_ACQUIRE, KB2_FAULT_PROCESS_EXIT},
+        {KB2_TEST_FAULT_KILL_AFTER_USED, KB2_FAULT_PROCESS_EXIT},
+        {KB2_TEST_FAULT_BAD_USED_ID, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_GENERATION, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_ENVELOPE, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_CHAIN, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_LENGTH, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_RIGHTS, KB2_FAULT_PROTOCOL},
+    };
     kb2_controller_t *controller = NULL;
     kb2_test_host_t host;
     uint64_t generation;
+    size_t index;
     int host_initialized = 0;
     int result = 1;
 
-    if (argument_count != 4) {
-        fprintf(stderr, "usage: %s FIXTURE_SANDBOX CORE_SO MODULE_KO\n", arguments[0]);
+    if (argument_count != 5) {
+        fprintf(stderr,
+                "usage: %s FIXTURE_SANDBOX CORE_SO PROVIDER_KO CONSUMER_KO\n",
+                arguments[0]);
         return 2;
     }
-    if (!kb2_test_host_initialize(&host, arguments[1], arguments[2], arguments[3])) {
+    if (!kb2_test_host_initialize(
+            &host, arguments[1], arguments[2], arguments[3], arguments[4])) {
         return 1;
     }
     host_initialized = 1;
@@ -112,8 +131,32 @@ int main(int argument_count, char **arguments) {
         kb2_controller_generation(controller) != generation + 1u ||
         kb2_controller_report_ready(controller, generation) != KB2_STATUS_STALE_GENERATION ||
         kb2_controller_report_ready(controller, generation + 1u) != KB2_STATUS_OK ||
-        !kb2_test_host_run_fixture(&host) ||
-        kb2_controller_stop(controller) != KB2_STATUS_OK || !drive(controller, &host) ||
+        !kb2_test_host_run_fixture(&host)) {
+        goto finish;
+    }
+    generation++;
+    for (index = 0; index < sizeof(fault_scenarios) / sizeof(fault_scenarios[0]); ++index) {
+        kb2_fault_kind_t fault_kind;
+        uint64_t fault_code;
+        uint64_t failed_generation = generation;
+
+        if (!kb2_test_host_inject_fault(
+                &host, fault_scenarios[index].scenario, &fault_kind, &fault_code) ||
+            fault_kind != fault_scenarios[index].kind ||
+            fault_code != (uint64_t)fault_scenarios[index].scenario ||
+            kb2_controller_report_fault(
+                controller, failed_generation, fault_kind, fault_code) != KB2_STATUS_OK ||
+            kb2_controller_restart(controller) != KB2_STATUS_OK || !drive(controller, &host) ||
+            kb2_controller_generation(controller) != failed_generation + 1u ||
+            kb2_controller_report_ready(controller, failed_generation) !=
+                KB2_STATUS_STALE_GENERATION ||
+            kb2_controller_report_ready(controller, failed_generation + 1u) != KB2_STATUS_OK ||
+            !kb2_test_host_run_fixture(&host)) {
+            goto finish;
+        }
+        generation = failed_generation + 1u;
+    }
+    if (kb2_controller_stop(controller) != KB2_STATUS_OK || !drive(controller, &host) ||
         kb2_controller_state(controller) != KB2_STATE_IDLE ||
         !kb2_test_host_is_released(&host)) {
         goto finish;

@@ -49,6 +49,16 @@ static int add_size(size_t *value, size_t count, size_t item_size) {
     return 1;
 }
 
+static int digest_is_zero(const uint8_t digest[KB2_CLOSURE_SCHEMA_DIGEST_SIZE]) {
+    uint8_t combined = 0;
+    size_t index;
+
+    for (index = 0; index < KB2_CLOSURE_SCHEMA_DIGEST_SIZE; ++index) {
+        combined = (uint8_t)(combined | digest[index]);
+    }
+    return combined == 0;
+}
+
 static int string_valid(kb2_closure_string_t string) {
     uint32_t index;
 
@@ -66,18 +76,28 @@ static int string_valid(kb2_closure_string_t string) {
 }
 
 static int source_valid(const kb2_closure_manifest_source_t *source) {
-    return source != NULL && source->artifacts != NULL && source->artifact_count != 0 &&
-           source->artifact_count <= KB2_CLOSURE_MAX_ARTIFACTS &&
-           source->dependency_count <= KB2_CLOSURE_MAX_DEPENDENCIES &&
-           source->export_count <= KB2_CLOSURE_MAX_EXPORTS &&
-           source->import_count <= KB2_CLOSURE_MAX_IMPORTS &&
-           source->resource_count <= KB2_CLOSURE_MAX_RESOURCES &&
-           source->binding_count <= KB2_CLOSURE_MAX_RESOURCE_BINDINGS &&
-           (source->dependency_count == 0 || source->dependencies != NULL) &&
-           (source->export_count == 0 || source->exports != NULL) &&
-           (source->import_count == 0 || source->imports != NULL) &&
-           (source->resource_count == 0 || source->resources != NULL) &&
-           (source->binding_count == 0 || source->bindings != NULL);
+    size_t index;
+
+    if (source == NULL || source->artifacts == NULL || source->artifact_count == 0 ||
+        source->artifact_count > KB2_CLOSURE_MAX_ARTIFACTS ||
+        source->dependency_count > KB2_CLOSURE_MAX_DEPENDENCIES ||
+        source->export_count > KB2_CLOSURE_MAX_EXPORTS ||
+        source->import_count > KB2_CLOSURE_MAX_IMPORTS ||
+        source->resource_count > KB2_CLOSURE_MAX_RESOURCES ||
+        source->binding_count > KB2_CLOSURE_MAX_RESOURCE_BINDINGS ||
+        (source->dependency_count != 0 && source->dependencies == NULL) ||
+        (source->export_count != 0 && source->exports == NULL) ||
+        (source->import_count != 0 && source->imports == NULL) ||
+        (source->resource_count != 0 && source->resources == NULL) ||
+        (source->binding_count != 0 && source->bindings == NULL)) {
+        return 0;
+    }
+    for (index = 0; index < source->resource_count; ++index) {
+        if (digest_is_zero(source->resources[index].interface_schema_digest)) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 static int source_string_size(const kb2_closure_manifest_source_t *source, size_t *size_out) {
@@ -338,6 +358,9 @@ kb2_protocol_status_t kb2_closure_manifest_encode(
         store_u64(record + KB2_CLOSURE_RESOURCE_DESCRIPTOR_MAXIMUM_RIGHTS_OFFSET,
                   resource->maximum_rights);
         store_u32(record + KB2_CLOSURE_RESOURCE_DESCRIPTOR_FLAGS_OFFSET, resource->flags);
+        memcpy(record + KB2_CLOSURE_RESOURCE_DESCRIPTOR_INTERFACE_SCHEMA_DIGEST_OFFSET,
+               resource->interface_schema_digest,
+               sizeof(resource->interface_schema_digest));
     }
     for (index = 0; index < source->binding_count; ++index) {
         uint8_t *record = buffer + offsets[BINDINGS] +
@@ -752,8 +775,12 @@ kb2_protocol_status_t kb2_closure_manifest_resource(
     resource_out->maximum_rights =
         load_u64(record + KB2_CLOSURE_RESOURCE_DESCRIPTOR_MAXIMUM_RIGHTS_OFFSET);
     resource_out->flags = load_u32(record + KB2_CLOSURE_RESOURCE_DESCRIPTOR_FLAGS_OFFSET);
+    memcpy(resource_out->interface_schema_digest,
+           record + KB2_CLOSURE_RESOURCE_DESCRIPTOR_INTERFACE_SCHEMA_DIGEST_OFFSET,
+           sizeof(resource_out->interface_schema_digest));
     if (resource_out->slot_id == 0 || resource_out->minimum_count > resource_out->maximum_count ||
         (resource_out->required_rights & ~resource_out->maximum_rights) != 0 ||
+        digest_is_zero(resource_out->interface_schema_digest) ||
         !bytes_are_zero(record + KB2_CLOSURE_RESOURCE_DESCRIPTOR_RESERVED_OFFSET, 4u)) {
         memset(resource_out, 0, sizeof(*resource_out));
         return KB2_PROTOCOL_MALFORMED;

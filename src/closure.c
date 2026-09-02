@@ -566,6 +566,8 @@ kb2_status_t kb2_closure_builder_add_import(kb2_closure_builder_t *builder,
 kb2_status_t kb2_closure_builder_add_resource(kb2_closure_builder_t *builder,
                                               uint32_t slot_id,
                                               kb2_resource_type_t type,
+                                              const uint8_t *interface_schema_digest,
+                                              size_t digest_size,
                                               uint32_t minimum_count,
                                               uint32_t maximum_count,
                                               uint64_t required_rights,
@@ -577,8 +579,12 @@ kb2_status_t kb2_closure_builder_add_resource(kb2_closure_builder_t *builder,
     size_t index;
 
     if (builder == NULL || slot_id == 0 || !kb2_resource_type_valid(type) ||
+        interface_schema_digest == NULL || digest_size != KB2_DIGEST_SIZE ||
         (flags & ~KB2_KNOWN_RESOURCE_FLAGS) != 0) {
         return KB2_STATUS_INVALID_ARGUMENT;
+    }
+    if (kb2_digest_is_zero(interface_schema_digest)) {
+        return KB2_STATUS_INVALID_CONFIGURATION;
     }
     known_rights = kb2_known_resource_rights(type);
     if (maximum_count == 0 || minimum_count > maximum_count || maximum_rights == 0 ||
@@ -604,6 +610,7 @@ kb2_status_t kb2_closure_builder_add_resource(kb2_closure_builder_t *builder,
     record = &builder->storage.resources[builder->storage.resource_count++];
     record->slot_id = slot_id;
     record->type = type;
+    memcpy(record->interface_schema_digest, interface_schema_digest, KB2_DIGEST_SIZE);
     record->minimum_count = minimum_count;
     record->maximum_count = maximum_count;
     record->required_rights = required_rights;
@@ -1163,6 +1170,8 @@ kb2_status_t kb2_closure_resource(const kb2_closure_t *closure,
                                   size_t index,
                                   uint32_t *slot_id_out,
                                   kb2_resource_type_t *type_out,
+                                  uint8_t *interface_schema_digest_out,
+                                  size_t digest_size,
                                   uint32_t *minimum_count_out,
                                   uint32_t *maximum_count_out,
                                   uint64_t *required_rights_out,
@@ -1171,13 +1180,15 @@ kb2_status_t kb2_closure_resource(const kb2_closure_t *closure,
     const struct kb2_closure_resource_record *record;
 
     if (closure == NULL || index >= closure->storage.resource_count || slot_id_out == NULL ||
-        type_out == NULL || minimum_count_out == NULL || maximum_count_out == NULL ||
+        type_out == NULL || interface_schema_digest_out == NULL ||
+        digest_size != KB2_DIGEST_SIZE || minimum_count_out == NULL || maximum_count_out == NULL ||
         required_rights_out == NULL || maximum_rights_out == NULL || flags_out == NULL) {
         return KB2_STATUS_INVALID_ARGUMENT;
     }
     record = &closure->storage.resources[index];
     *slot_id_out = record->slot_id;
     *type_out = record->type;
+    memcpy(interface_schema_digest_out, record->interface_schema_digest, KB2_DIGEST_SIZE);
     *minimum_count_out = record->minimum_count;
     *maximum_count_out = record->maximum_count;
     *required_rights_out = record->required_rights;

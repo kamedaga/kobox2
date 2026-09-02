@@ -116,7 +116,7 @@
       ]
     },
     "resource_descriptor": {
-      "size": 40,
+      "size": 72,
       "fields": [
         { "name": "slot_id", "type": "u32", "offset": 0 },
         { "name": "type", "type": "u32", "offset": 4 },
@@ -125,7 +125,8 @@
         { "name": "required_rights", "type": "u64", "offset": 16 },
         { "name": "maximum_rights", "type": "u64", "offset": 24 },
         { "name": "flags", "type": "u32", "offset": 32 },
-        { "name": "reserved", "type": "u32", "offset": 36 }
+        { "name": "reserved", "type": "u32", "offset": 36 },
+        { "name": "interface_schema_digest", "type": "u8[32]", "offset": 40 }
       ]
     },
     "resource_binding": {

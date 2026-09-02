@@ -17,6 +17,7 @@
     "channel_flag_data": 2,
     "queue_role_event": 1,
     "queue_role_request": 2,
+    "native_handle_role_memory": 0,
     "region_right_read": 1,
     "region_right_write": 2
   },

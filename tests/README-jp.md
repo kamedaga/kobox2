@@ -8,16 +8,17 @@ closure testはDAGの到達可能性、cycle、明示的なsymbol binding、reso
 seal、不変な参照を扱います。
 
 Linuxではtest hostが独立したsandbox processを起動し、bootstrap socketを通じて一つの
-shared-memory object、一つのcanonical closure manifest、不変なartifact object、四つの
-eventfdを転送します。sandboxは`READY`の前にmanifestと全artifactのdigestを検証します。
+shared-memory object、一つのcanonical closure manifest、一つのcanonical resource grant
+set、不変なartifact object、一つのresource handle、四つのeventfdを転送します。sandboxは
+`READY`の前に両schemaとdigest、manifest/grant binding、全artifact digest、resource handle
+mappingを検証します。
 split virtqueueによりpollingなしで
 request completionとlifecycle eventを処理します。direct/indirect descriptor、
 `EVENT_IDX`、wrap-around、region right、不正入力、quiesce、決定的なprocess fault、pidfdで
 確認するprocess終了、revoke、reset、reap、再生成を検証します。device固有のacceptance testはhost OS
 リポジトリに置きます。
 
-GPL sandbox fixtureはmanifestの依存順で、転送されたobjectから`fixture_core.so`をloadし、
-ET_RELの`fixture_module.ko`を再配置します。宣言されたimportを明示的なprovider namespace
-から解決し、graph順にinit、quiesce、cleanup entryを呼びます。moduleはallocation、lock、wait/wake、二本のnative
-thread、per-CPU state、RCU grace period、monotonic timeを実行し、request virtqueueへ結果を
-返します。
+GPL sandbox conformance targetは`fixture_core.so`、`fixture_provider.ko`、
+`fixture_consumer.ko`で構成します。testは依存・symbol解決、resourceの可視範囲・rights、
+native thread、per-CPU state、RCU、time、逆順lifecycle、init rollback、export集合、
+stale generation、fault/restartを検証します。

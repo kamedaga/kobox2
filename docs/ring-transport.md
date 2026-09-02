@@ -45,7 +45,8 @@ region ID, transport base, length, rights, and generation.
 
 IPC virtqueue memory resides in shared VM objects outside hardware device DMA
 address spaces. The host port associates registrations with native
-shared-memory capabilities.
+shared-memory capabilities. The channel interface identifies its transferred
+memory capability with native handle role `MEMORY`.
 
 ## Message envelope
 

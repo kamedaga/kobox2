@@ -17,6 +17,9 @@ SCHEMAS = (
     (ROOT / "protocol" / "schema" / "closure.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "closure_layout.h",
      "KB2_CLOSURE", "KOBOX2_CLOSURE_LAYOUT_H"),
+    (ROOT / "protocol" / "schema" / "resource_grant.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "resource_grant_layout.h",
+     "KB2_RESOURCE_GRANT", "KOBOX2_RESOURCE_GRANT_LAYOUT_H"),
 )
 
 TYPE_SIZE = {

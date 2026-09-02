@@ -8,6 +8,7 @@
 #include <kobox2/closure.h>
 #include <kobox2/closure_manifest.h>
 #include <kobox2/protocol.h>
+#include <kobox2/resource_grant.h>
 #include <kobox2/sha256.h>
 
 #include <errno.h>
@@ -32,7 +33,6 @@ extern char **environ;
 
 #define KB2_TEST_MINIMUM_SHARED_MEMORY_SIZE 16384u
 #define KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS 5000
-#define KB2_TEST_ARTIFACT_COUNT 2u
 
 static void kb2_test_close(int *file_descriptor) {
     if (*file_descriptor >= 0) {
@@ -52,6 +52,7 @@ static void kb2_test_host_release_local_resources(kb2_test_host_t *host) {
     host->channel_descriptor_size = 0;
     kb2_test_close(&host->shared_memory_fd);
     kb2_test_close(&host->manifest_fd);
+    kb2_test_close(&host->grant_fd);
     for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
         kb2_test_close(&host->artifact_fds[index]);
         host->artifact_sizes[index] = 0;
@@ -59,6 +60,8 @@ static void kb2_test_host_release_local_resources(kb2_test_host_t *host) {
     }
     host->manifest_size = 0;
     memset(host->manifest_digest, 0, sizeof(host->manifest_digest));
+    host->grant_size = 0;
+    memset(host->grant_digest, 0, sizeof(host->grant_digest));
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {
         kb2_test_close(&host->notification_fds[index]);
         host->notification_ids[index] = 0;
@@ -208,42 +211,73 @@ static int kb2_test_make_manifest(kb2_test_host_t *host) {
         {
             .node_id = 2,
             .kind = KB2_CLOSURE_ARTIFACT_RELOCATABLE_MODULE,
+            .namespace_name = KB2_TEST_STRING("fixture_provider"),
+            .init_symbol = KB2_TEST_STRING("kobox_fixture_provider_init"),
+            .quiesce_symbol = KB2_TEST_STRING("kobox_fixture_provider_quiesce"),
+            .cleanup_symbol = KB2_TEST_STRING("kobox_fixture_provider_cleanup"),
+        },
+        {
+            .node_id = 3,
+            .kind = KB2_CLOSURE_ARTIFACT_RELOCATABLE_MODULE,
             .flags = KB2_CLOSURE_ARTIFACT_FLAG_ROOT,
-            .namespace_name = KB2_TEST_STRING("fixture_module"),
-            .init_symbol = KB2_TEST_STRING("kobox_fixture_module_init"),
-            .quiesce_symbol = KB2_TEST_STRING("kobox_fixture_module_quiesce"),
-            .cleanup_symbol = KB2_TEST_STRING("kobox_fixture_module_cleanup"),
+            .namespace_name = KB2_TEST_STRING("fixture_consumer"),
+            .init_symbol = KB2_TEST_STRING("kobox_fixture_consumer_init"),
+            .quiesce_symbol = KB2_TEST_STRING("kobox_fixture_consumer_quiesce"),
+            .cleanup_symbol = KB2_TEST_STRING("kobox_fixture_consumer_cleanup"),
         },
     };
-    const kb2_closure_manifest_dependency_t dependencies[] = {{2, 1}};
+    const kb2_closure_manifest_dependency_t dependencies[] = {{2, 1}, {3, 2}};
     const kb2_closure_manifest_symbol_t exports[] = {
         {1, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_core_cleanup")},
-        {1, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_core_get_ops")},
         {1, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_core_init")},
+        {1,
+         KB2_CLOSURE_SYMBOL_OBJECT,
+         KB2_TEST_STRING("kobox_fixture_core_operations")},
         {1, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_core_quiesce")},
-        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_module_cleanup")},
-        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_module_init")},
-        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_module_quiesce")},
-        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_module_run")},
+        {1,
+         KB2_CLOSURE_SYMBOL_FUNCTION,
+         KB2_TEST_STRING("kobox_fixture_lifecycle_snapshot")},
+        {2, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_provider_add")},
+        {2,
+         KB2_CLOSURE_SYMBOL_FUNCTION,
+         KB2_TEST_STRING("kobox_fixture_provider_cleanup")},
+        {2,
+         KB2_CLOSURE_SYMBOL_FUNCTION,
+         KB2_TEST_STRING("kobox_fixture_provider_init")},
+        {2,
+         KB2_CLOSURE_SYMBOL_FUNCTION,
+         KB2_TEST_STRING("kobox_fixture_provider_quiesce")},
+        {3,
+         KB2_CLOSURE_SYMBOL_FUNCTION,
+         KB2_TEST_STRING("kobox_fixture_consumer_cleanup")},
+        {3,
+         KB2_CLOSURE_SYMBOL_FUNCTION,
+         KB2_TEST_STRING("kobox_fixture_consumer_init")},
+        {3,
+         KB2_CLOSURE_SYMBOL_FUNCTION,
+         KB2_TEST_STRING("kobox_fixture_consumer_quiesce")},
+        {3, KB2_CLOSURE_SYMBOL_FUNCTION, KB2_TEST_STRING("kobox_fixture_consumer_run")},
     };
     const kb2_closure_manifest_import_t imports[] = {
-        {2,
-         1,
+        {3,
+         2,
          KB2_CLOSURE_SYMBOL_FUNCTION,
          0,
-         KB2_TEST_STRING("kobox_fixture_core_get_ops"),
-         KB2_TEST_STRING("kobox_fixture_core_get_ops")},
+         KB2_TEST_STRING("kobox_fixture_provider_add"),
+         KB2_TEST_STRING("kobox_fixture_provider_add")},
     };
-    const kb2_closure_manifest_resource_t resources[] = {
-        {1,
-         KB2_RESOURCE_CHANNEL,
-         1,
-         1,
-         KB2_CHANNEL_RIGHT_SEND | KB2_CHANNEL_RIGHT_RECEIVE,
-         KB2_CHANNEL_RIGHT_SEND | KB2_CHANNEL_RIGHT_RECEIVE,
-         KB2_RESOURCE_REQUIRED | KB2_RESOURCE_RESET_REQUIRED},
+    kb2_closure_manifest_resource_t resources[] = {
+        {
+            .slot_id = 1,
+            .type = KB2_RESOURCE_CHANNEL,
+            .minimum_count = 1,
+            .maximum_count = 1,
+            .required_rights = KB2_CHANNEL_RIGHT_SEND | KB2_CHANNEL_RIGHT_RECEIVE,
+            .maximum_rights = KB2_CHANNEL_RIGHT_SEND | KB2_CHANNEL_RIGHT_RECEIVE,
+            .flags = KB2_RESOURCE_REQUIRED | KB2_RESOURCE_RESET_REQUIRED,
+        },
     };
-    const kb2_closure_manifest_binding_t bindings[] = {{1, 2}};
+    const kb2_closure_manifest_binding_t bindings[] = {{1, 3}};
     const kb2_closure_manifest_source_t source = {
         .artifacts = artifacts,
         .artifact_count = sizeof(artifacts) / sizeof(artifacts[0]),
@@ -272,7 +306,10 @@ static int kb2_test_make_manifest(kb2_test_host_t *host) {
                host->artifact_digests[index],
                sizeof(artifacts[index].content_digest));
     }
-    if (kb2_closure_manifest_encoded_size(&source, &encoded_size) != KB2_PROTOCOL_OK) {
+    if (kb2_protocol_copy_schema_digest(resources[0].interface_schema_digest,
+                                        sizeof(resources[0].interface_schema_digest)) !=
+            KB2_PROTOCOL_OK ||
+        kb2_closure_manifest_encoded_size(&source, &encoded_size) != KB2_PROTOCOL_OK) {
         goto finish;
     }
     encoded = malloc(encoded_size);
@@ -287,7 +324,8 @@ static int kb2_test_make_manifest(kb2_test_host_t *host) {
     kb2_sha256(encoded, encoded_size, host->manifest_digest);
     descriptor = memfd_create("kobox2-test-manifest", MFD_CLOEXEC | MFD_ALLOW_SEALING);
     if (descriptor < 0 || ftruncate(descriptor, (off_t)encoded_size) != 0 ||
-        !kb2_test_write_all(descriptor, encoded, encoded_size) || lseek(descriptor, 0, SEEK_SET) != 0 ||
+        !kb2_test_write_all(descriptor, encoded, encoded_size) ||
+        lseek(descriptor, 0, SEEK_SET) != 0 ||
         fcntl(descriptor,
               F_ADD_SEALS,
               F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0) {
@@ -310,8 +348,14 @@ static int kb2_test_make_closure_package(kb2_test_host_t *host) {
     size_t index;
 
     for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
+        static const char *const names[KB2_TEST_ARTIFACT_COUNT] = {
+            "kobox2-test-core",
+            "kobox2-test-provider",
+            "kobox2-test-consumer",
+        };
+
         if (!kb2_test_copy_artifact(host->artifact_paths[index],
-                                    index == 0 ? "kobox2-test-core" : "kobox2-test-module",
+                                    names[index],
                                     &host->artifact_fds[index],
                                     &host->artifact_sizes[index],
                                     host->artifact_digests[index])) {
@@ -321,26 +365,104 @@ static int kb2_test_make_closure_package(kb2_test_host_t *host) {
     return kb2_test_make_manifest(host);
 }
 
+static int kb2_test_make_grant(kb2_test_host_t *host) {
+    kb2_resource_grant_slot_source_t slot = {
+        .slot_id = 1,
+        .resource_type = KB2_CLOSURE_RESOURCE_CHANNEL,
+        .state = KB2_RESOURCE_GRANT_SLOT_PRESENT,
+    };
+    const kb2_resource_grant_object_source_t object = {
+        .slot_id = 1,
+        .granted_rights =
+            KB2_CLOSURE_CHANNEL_RIGHT_SEND | KB2_CLOSURE_CHANNEL_RIGHT_RECEIVE,
+    };
+    kb2_resource_grant_object_source_t generation_object = object;
+    kb2_resource_grant_handle_binding_t binding = {
+        .role = KB2_PROTOCOL_NATIVE_HANDLE_ROLE_MEMORY,
+        .transfer_handle_index = 0,
+    };
+    kb2_resource_grant_source_t source = {
+        .generation = host->generation,
+        .slots = &slot,
+        .slot_count = 1,
+        .objects = &generation_object,
+        .object_count = 1,
+        .handle_bindings = &binding,
+        .handle_binding_count = 1,
+    };
+    kb2_resource_grant_t decoded;
+    uint8_t *encoded = NULL;
+    size_t encoded_size;
+    size_t actual_size;
+    int descriptor = -1;
+    int result = 0;
+
+    generation_object.object_id = host->generation;
+    binding.object_id = generation_object.object_id;
+    memcpy(source.closure_manifest_digest,
+           host->manifest_digest,
+           sizeof(source.closure_manifest_digest));
+    if (kb2_protocol_copy_schema_digest(slot.interface_schema_digest,
+                                        sizeof(slot.interface_schema_digest)) !=
+            KB2_PROTOCOL_OK ||
+        kb2_resource_grant_encoded_size(&source, &encoded_size) != KB2_PROTOCOL_OK) {
+        goto finish;
+    }
+    encoded = malloc(encoded_size);
+    if (encoded == NULL ||
+        kb2_resource_grant_encode(
+            encoded, encoded_size, &actual_size, &source) != KB2_PROTOCOL_OK ||
+        actual_size != encoded_size ||
+        kb2_resource_grant_decode(encoded, encoded_size, &decoded) != KB2_PROTOCOL_OK) {
+        goto finish;
+    }
+    kb2_sha256(encoded, encoded_size, host->grant_digest);
+    descriptor = memfd_create("kobox2-test-grant", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+    if (descriptor < 0 || ftruncate(descriptor, (off_t)encoded_size) != 0 ||
+        !kb2_test_write_all(descriptor, encoded, encoded_size) ||
+        lseek(descriptor, 0, SEEK_SET) != 0 ||
+        fcntl(descriptor,
+              F_ADD_SEALS,
+              F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0) {
+        goto finish;
+    }
+    host->grant_fd = descriptor;
+    host->grant_size = encoded_size;
+    descriptor = -1;
+    result = 1;
+
+finish:
+    free(encoded);
+    if (descriptor >= 0) {
+        close(descriptor);
+    }
+    return result;
+}
+
 int kb2_test_host_initialize(kb2_test_host_t *host,
                              const char *sandbox_path,
                              const char *core_path,
-                             const char *module_path) {
+                             const char *provider_path,
+                             const char *consumer_path) {
     size_t index;
 
     if (host == NULL || sandbox_path == NULL || sandbox_path[0] == '\0' || core_path == NULL ||
-        core_path[0] == '\0' || module_path == NULL || module_path[0] == '\0') {
+        core_path[0] == '\0' || provider_path == NULL || provider_path[0] == '\0' ||
+        consumer_path == NULL || consumer_path[0] == '\0') {
         return 0;
     }
     memset(host, 0, sizeof(*host));
     host->sandbox_path = sandbox_path;
     host->artifact_paths[0] = core_path;
-    host->artifact_paths[1] = module_path;
+    host->artifact_paths[1] = provider_path;
+    host->artifact_paths[2] = consumer_path;
     host->shared_memory = MAP_FAILED;
     host->process_id = -1;
     host->process_fd = -1;
     host->bootstrap_socket = -1;
     host->shared_memory_fd = -1;
     host->manifest_fd = -1;
+    host->grant_fd = -1;
     for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
         host->artifact_fds[index] = -1;
     }
@@ -500,6 +622,7 @@ static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
     const kb2_closure_t *closure = kb2_action_closure(action);
     uint8_t configured_digest[KB2_DIGEST_SIZE];
     uint8_t protocol_digest[KB2_DIGEST_SIZE];
+    uint8_t interface_digest[KB2_DIGEST_SIZE];
     kb2_resource_type_t resource_type;
     uint64_t required_rights;
     uint64_t maximum_rights;
@@ -526,12 +649,16 @@ static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
         kb2_test_host_release_local_resources(host);
         return KB2_STATUS_HOST_FAILURE;
     }
-    if (closure == NULL || kb2_closure_resource_count(closure) != 1 ||
+    if (kb2_protocol_copy_schema_digest(protocol_digest, sizeof(protocol_digest)) !=
+            KB2_PROTOCOL_OK ||
+        closure == NULL || kb2_closure_resource_count(closure) != 1 ||
         kb2_closure_artifact_count(closure) != KB2_TEST_ARTIFACT_COUNT ||
         kb2_closure_resource(closure,
                              0,
                              &slot_id,
                              &resource_type,
+                             interface_digest,
+                             sizeof(interface_digest),
                              &minimum_count,
                              &maximum_count,
                              &required_rights,
@@ -541,6 +668,7 @@ static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
         maximum_count != 1 ||
         required_rights != (KB2_CHANNEL_RIGHT_SEND | KB2_CHANNEL_RIGHT_RECEIVE) ||
         maximum_rights != required_rights ||
+        memcmp(interface_digest, protocol_digest, sizeof(interface_digest)) != 0 ||
         (resource_flags & KB2_RESOURCE_REQUIRED) == 0 ||
         ((resource_flags & KB2_RESOURCE_RESET_REQUIRED) != 0) !=
             ((kb2_action_launch_flags(action) & KB2_LAUNCH_RESET_REQUIRED) != 0)) {
@@ -564,7 +692,7 @@ static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
             artifact_node_id != index + 1u ||
             artifact_kind != (index == 0 ? KB2_ARTIFACT_SHARED_PROVIDER
                                          : KB2_ARTIFACT_RELOCATABLE_MODULE) ||
-            artifact_is_root != (index == 1) ||
+            artifact_is_root != (index == 2) ||
             memcmp(artifact_digest,
                    host->artifact_digests[index],
                    sizeof(artifact_digest)) != 0) {
@@ -584,8 +712,6 @@ static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
                                KB2_DIGEST_CHANNEL_SET,
                                configured_digest,
                                sizeof(configured_digest)) != KB2_STATUS_OK ||
-        kb2_protocol_copy_schema_digest(protocol_digest, sizeof(protocol_digest)) !=
-            KB2_PROTOCOL_OK ||
         memcmp(configured_digest, protocol_digest, sizeof(configured_digest)) != 0) {
         return KB2_STATUS_RESOURCE_DENIED;
     }
@@ -634,6 +760,10 @@ static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
         return status;
     }
     host->generation = kb2_action_generation(action);
+    if (!kb2_test_make_grant(host)) {
+        kb2_test_host_release_local_resources(host);
+        return KB2_STATUS_HOST_FAILURE;
+    }
     host->resource_set_id = ++host->next_resource_set_id;
     *resource_set_id_out = host->resource_set_id;
     return KB2_STATUS_OK;
@@ -718,8 +848,10 @@ static kb2_status_t kb2_test_host_transfer(kb2_test_host_t *host,
         .generation = host->generation,
         .shared_memory_size = host->shared_memory_size,
         .manifest_size = host->manifest_size,
+        .grant_size = host->grant_size,
         .channel_descriptor_size = host->channel_descriptor_size,
         .artifact_count = KB2_TEST_ARTIFACT_COUNT,
+        .resource_handle_count = 1,
         .notification_count = KB2_TEST_NOTIFICATION_COUNT,
     };
     int file_descriptors[KB2_TEST_MAX_TRANSFER_FD_COUNT];
@@ -734,16 +866,21 @@ static kb2_status_t kb2_test_host_transfer(kb2_test_host_t *host,
     memcpy(bootstrap.manifest_digest,
            host->manifest_digest,
            sizeof(bootstrap.manifest_digest));
+    memcpy(bootstrap.grant_digest, host->grant_digest, sizeof(bootstrap.grant_digest));
     file_descriptors[0] = host->shared_memory_fd;
     file_descriptors[1] = host->manifest_fd;
+    file_descriptors[2] = host->grant_fd;
     for (index = 0; index < KB2_TEST_ARTIFACT_COUNT; ++index) {
         file_descriptors[KB2_TEST_BASE_TRANSFER_FD_COUNT + index] = host->artifact_fds[index];
     }
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {
         bootstrap.notification_ids[index] = host->notification_ids[index];
-        file_descriptors[KB2_TEST_BASE_TRANSFER_FD_COUNT + KB2_TEST_ARTIFACT_COUNT + index] =
+        file_descriptors[KB2_TEST_BASE_TRANSFER_FD_COUNT + KB2_TEST_ARTIFACT_COUNT +
+                         bootstrap.resource_handle_count + index] =
             host->notification_fds[index];
     }
+    file_descriptors[KB2_TEST_BASE_TRANSFER_FD_COUNT + KB2_TEST_ARTIFACT_COUNT] =
+        host->shared_memory_fd;
     descriptor_count = kb2_test_bootstrap_descriptor_count(&bootstrap);
     if (!kb2_test_send_bootstrap(host->bootstrap_socket,
                                  &bootstrap,
@@ -925,5 +1062,6 @@ uint64_t kb2_test_host_sandbox_id(const kb2_test_host_t *host) {
 
 int kb2_test_host_is_released(const kb2_test_host_t *host) {
     return host != NULL && host->resource_set_id == 0 && host->sandbox_id == 0 &&
-           host->process_id <= 0 && host->shared_memory == MAP_FAILED;
+           host->process_id <= 0 && host->shared_memory == MAP_FAILED &&
+           host->shared_memory_fd < 0 && host->manifest_fd < 0 && host->grant_fd < 0;
 }

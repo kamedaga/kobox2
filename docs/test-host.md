@@ -5,11 +5,12 @@ allocates a shared-memory object and notification objects, starts a separate
 sandbox process, and transfers those handles over a sequenced-packet bootstrap
 socket.
 
-The child validates the channel schema, maps the transferred memory, records its
-generation in shared memory, and signals the transferred notification object.
-Revocation makes the child unmap and close every transferred handle before it
-acknowledges and exits. Restart allocates fresh handles and IDs for the next
-generation.
+The child validates the channel, closure, and resource grant schemas, their
+generation and digests, the grant-to-manifest contract, and the native handle
+map before loading artifacts. It then maps the transferred memory and signals
+the transferred notification object. Revocation makes the child unmap and close
+every transferred handle before it acknowledges and exits. Restart allocates
+fresh handles, grant set, and IDs for the next generation.
 
 This adapter verifies the controller/host boundary. Production isolation and
 capability enforcement belong to each host port.

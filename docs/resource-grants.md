@@ -47,7 +47,8 @@ minimum and maximum. Required slots are `PRESENT`.
 
 Each granted object contains a nonzero 64-bit object ID and 64-bit granted
 rights. Object IDs are unique within a grant set and remain valid for that
-generation. A new generation receives new object IDs.
+generation. Object IDs increase across the canonical object table. A new
+generation receives new object IDs.
 
 Every present object satisfies:
 
@@ -105,9 +106,10 @@ transfer handle index. An object may have any handle count defined by its
 interface schema. Roles are unique within an object, and transfer indices form
 one complete canonical sequence.
 
-The handle index is independent of a native handle value. Linux maps it to an
-index in the received `SCM_RIGHTS` descriptor array. Other hosts map it to their
-native handle transfer table.
+The handle index is independent of a native handle value. It is zero-based
+within the resource-handle transfer sequence. Linux resolves it from that
+subsequence of the received `SCM_RIGHTS` descriptor array. Other hosts resolve
+it from their native handle transfer table.
 
 The Linux transfer order is:
 

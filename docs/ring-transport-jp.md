@@ -41,7 +41,8 @@ RFC 8785表現のSHA-256で、reserved fieldはzeroです。一致しなけれ�
 持ちます。
 
 IPC virtqueue memoryはhardware device DMA address space外のshared VM objectに配置し、
-host portがregistrationとnative shared-memory capabilityを対応付けます。
+host portがregistrationとnative shared-memory capabilityを対応付けます。channel interfaceは
+転送するmemory capabilityをnative handle role `MEMORY`で識別します。
 
 ## message envelope
 

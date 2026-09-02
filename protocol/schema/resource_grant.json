@@ -1,0 +1,65 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.resource-grant",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "constants": {
+    "max_slots": 16384,
+    "max_objects": 65536,
+    "max_handle_bindings": 65536,
+    "slot_absent": 0,
+    "slot_present": 1
+  },
+  "structures": {
+    "grant_header": {
+      "size": 128,
+      "fields": [
+        { "name": "total_size", "type": "u32", "offset": 0 },
+        { "name": "abi_identity", "type": "u8[4]", "offset": 4 },
+        { "name": "schema_digest", "type": "u8[32]", "offset": 8 },
+        { "name": "generation", "type": "u64", "offset": 40 },
+        { "name": "closure_manifest_digest", "type": "u8[32]", "offset": 48 },
+        { "name": "slot_count", "type": "u32", "offset": 80 },
+        { "name": "object_count", "type": "u32", "offset": 84 },
+        { "name": "handle_binding_count", "type": "u32", "offset": 88 },
+        { "name": "slot_table_offset", "type": "u32", "offset": 92 },
+        { "name": "object_table_offset", "type": "u32", "offset": 96 },
+        { "name": "handle_binding_table_offset", "type": "u32", "offset": 100 },
+        { "name": "reserved", "type": "u8[24]", "offset": 104 }
+      ]
+    },
+    "slot_grant": {
+      "size": 64,
+      "fields": [
+        { "name": "slot_id", "type": "u32", "offset": 0 },
+        { "name": "resource_type", "type": "u32", "offset": 4 },
+        { "name": "state", "type": "u32", "offset": 8 },
+        { "name": "object_start", "type": "u32", "offset": 12 },
+        { "name": "object_count", "type": "u32", "offset": 16 },
+        { "name": "reserved", "type": "u8[12]", "offset": 20 },
+        { "name": "interface_schema_digest", "type": "u8[32]", "offset": 32 }
+      ]
+    },
+    "object": {
+      "size": 32,
+      "fields": [
+        { "name": "slot_id", "type": "u32", "offset": 0 },
+        { "name": "reserved", "type": "u32", "offset": 4 },
+        { "name": "object_id", "type": "u64", "offset": 8 },
+        { "name": "granted_rights", "type": "u64", "offset": 16 },
+        { "name": "handle_start", "type": "u32", "offset": 24 },
+        { "name": "handle_count", "type": "u32", "offset": 28 }
+      ]
+    },
+    "handle_binding": {
+      "size": 16,
+      "fields": [
+        { "name": "object_id", "type": "u64", "offset": 0 },
+        { "name": "role", "type": "u32", "offset": 8 },
+        { "name": "transfer_handle_index", "type": "u32", "offset": 12 }
+      ]
+    }
+  }
+}

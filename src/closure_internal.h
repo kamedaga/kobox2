@@ -38,6 +38,7 @@ struct kb2_closure_import_record {
 };
 
 struct kb2_closure_resource_record {
+    uint8_t interface_schema_digest[KB2_DIGEST_SIZE];
     uint64_t required_rights;
     uint64_t maximum_rights;
     uint32_t slot_id;

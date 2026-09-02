@@ -4,10 +4,10 @@ test adapterは`libkobox2`のhost-action contractをLinux上で実行します�
 objectとnotification objectを割り当て、独立したsandbox processを起動し、
 sequenced-packet bootstrap socketを通じてhandleを転送します。
 
-childはchannel schemaを検証して転送されたmemoryをmapし、generationをshared memoryへ
-記録して転送されたnotification objectをsignalします。revoke時は転送されたすべての
-handleをunmapまたはcloseしてから応答し、終了します。restartでは次のgenerationへ新しい
-handleとIDを割り当てます。
+childはartifactをloadする前にchannel、closure、resource grantのschema、generation、digest、
+grantとmanifestの契約、native handle mapを検証します。その後、転送されたmemoryをmapし、
+notification objectをsignalします。revoke時は転送されたすべてのhandleをunmapまたはcloseして
+から応答し、終了します。restartでは次のgenerationへ新しいhandle、grant set、IDを割り当てます。
 
 このadapterはcontroller/host境界を検証します。productionの隔離とcapability enforcementは
 各host portが担当します。

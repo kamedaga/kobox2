@@ -57,14 +57,16 @@ Bootstrap transfers resources in this order:
 
 1. transport memory;
 2. canonical closure manifest;
-3. artifact objects in manifest artifact order; and
-4. notification endpoints in channel order.
+3. canonical resource grant set;
+4. artifact objects in manifest artifact order;
+5. resource handles in grant binding order; and
+6. notification endpoints in channel order.
 
-The bootstrap envelope carries generation, manifest digest, manifest size,
-artifact count, notification count, and total resource count. The manifest and
-artifact objects are immutable before process launch. The sandbox validates the envelope,
-manifest schema and digest, complete graph, artifact size and digest, resource
-count, and generation before loading code or reporting `READY`.
+The bootstrap envelope carries generation, manifest and grant digests and
+sizes, artifact count, resource handle count, notification count, and total
+transfer count. The manifest, grant set, and artifact objects are immutable
+before process launch. The sandbox validates the complete package before
+loading code or reporting `READY`.
 
 ## Symbol binding
 
@@ -92,6 +94,7 @@ A resource requirement is a symbolic slot containing:
 
 - a nonzero slot ID unique within the closure;
 - a resource type;
+- an interface schema digest;
 - required or optional presence;
 - minimum and maximum object counts;
 - required and maximum rights;
@@ -112,25 +115,31 @@ The resource type defines the meaning of its rights:
 The host policy grants rights within the declared maximum. A required slot is
 valid when its count and required rights are satisfied. An absent optional slot
 is represented explicitly. Exclusive slots have one consuming node;
-closure-shared slots name every consumer.
+closure-shared slots name every consumer. Dependency edges grant symbol access;
+resource bindings grant resource visibility.
 
 The controller owns each resource set. Nodes receive generation-scoped resource
 IDs for the lifetime of the closure. Native handles are resolved by the host
 adapter. Transport-region access rights and closure-resource rights are separate
 domains.
 
+The per-generation grant format, node resource views, module context, and
+native handle mapping are specified in
+[resource-grants.md](./resource-grants.md).
+
 ## Lifecycle
 
 Startup has the following order:
 
-1. validate the complete manifest and artifact digests;
-2. bind every resource slot;
-3. map every artifact;
-4. complete every relocation and symbol binding;
-5. initialize providers in dependency order;
-6. initialize root modules;
-7. report `READY`; and
-8. accept requests.
+1. validate the complete manifest, grant set, and artifact digests;
+2. import resources into a temporary registry;
+3. construct node resource views and commit the registry;
+4. map every artifact;
+5. complete every relocation and symbol binding;
+6. initialize providers in dependency order;
+7. initialize root modules;
+8. report `READY`; and
+9. accept requests.
 
 If initialization fails, successfully initialized nodes are cleaned up in
 reverse initialization order. Each node completes its own partial rollback
@@ -143,36 +152,38 @@ Normal shutdown has the following order:
 3. drain requests and callbacks;
 4. clean up nodes in reverse initialization order;
 5. unload modules and then shared providers;
-6. report `STOPPED` and exit the sandbox process;
-7. confirm process exit;
-8. revoke resources;
-9. reset resources whose policy requires it;
-10. reap the process record; and
-11. release resources.
+6. destroy node resource views and the sandbox registry;
+7. report `STOPPED` and exit the sandbox process;
+8. confirm process exit;
+9. revoke resources;
+10. reset resources whose policy requires it;
+11. reap the process record; and
+12. release resources.
 
-Normal init, quiesce, and cleanup entries run once per node. A quiesce deadline
-failure becomes a closure fault.
+Normal init, quiesce, and cleanup entries run once per node with the same
+immutable module context. A quiesce deadline failure becomes a closure fault.
 
 ## Linux closure loader
 
-The Linux sandbox closure loader consumes one decoded manifest and the exact
-artifact object sequence named by it. It validates the complete graph, declared
-exports and imports, resource bindings, artifact sizes, and artifact digests
-before mapping code.
+The Linux sandbox closure loader consumes one decoded manifest, one decoded
+grant set, and their exact artifact and resource handle sequences. It validates
+the complete graph, symbols, resources, rights, visibility, native handle map,
+artifact sizes, and artifact digests before mapping code.
 
 The loader computes a deterministic topological order, maps every artifact,
 resolves each import through its named provider, initializes each node once,
 and exposes only declared exports by node ID and symbol name. Lifecycle exports
-use the Linux module convention `int entry(void)`.
+use `int entry(const struct kobox_module_context *context)`.
 
-Resource bindings are completed through an explicit sandbox callback before
-artifact mapping. Sandbox-runtime imports use a separate resolver callback and
-node zero. Closure imports resolve only against the export table of their
-direct provider.
+Resources are imported transactionally and exposed through node resource views
+before artifact mapping. Sandbox-runtime imports use a separate resolver
+callback and node zero. Closure imports resolve only against the export table
+of their direct provider.
 
 Quiesce and cleanup use reverse topological order. Initialization failure
-cleans up initialized nodes in reverse order and unloads every mapped artifact.
-Relocatable modules are unloaded before shared providers.
+cleans up initialized nodes in reverse order, unloads every mapped artifact,
+destroys resource views, and releases the registry. Relocatable modules are
+unloaded before shared providers.
 
 ## Multiple modules
 
@@ -213,5 +224,5 @@ Callers may destroy their original closure after configuration.
 `kb2_controller_start` starts a fresh sandbox generation. Its ordered host
 actions carry a read-only closure view, digests, limits, and opaque resource and
 sandbox IDs. The host adapter performs native allocation, process creation,
-transfer, graceful process shutdown or termination, revocation, reset, reap,
-and release.
+grant-set construction, transfer, graceful process shutdown or termination,
+revocation, reset, reap, and release.

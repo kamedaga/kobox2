@@ -50,13 +50,14 @@ bootstrapはresourceを次の順に転送します。
 
 1. transport memory
 2. canonical closure manifest
-3. manifestのartifact順に並べたartifact object
-4. channel順のnotification endpoint
+3. canonical resource grant set
+4. manifestのartifact順に並べたartifact object
+5. grant binding順のresource handle
+6. channel順のnotification endpoint
 
-bootstrap envelopeはgeneration、manifest digest、manifest size、artifact数、notification数、resource
-総数を持ちます。manifestとartifact objectはprocess起動前にimmutableにします。sandboxはcodeをloadして`READY`
-を報告する前にenvelope、manifest schema/digest、graph全体、artifact size/digest、resource数、
-generationを検証します。
+bootstrap envelopeはgeneration、manifestとgrantのdigestとsize、artifact数、resource handle数、
+notification数、transfer総数を持ちます。manifest、grant set、artifact objectはprocess起動前に
+immutableにします。sandboxはcodeをloadして`READY`を報告する前にpackage全体を検証します。
 
 ## symbol binding
 
@@ -82,6 +83,7 @@ resource要求は次を持つsymbolic slotです。
 
 - closure内で一意なnonzero slot ID
 - resource type
+- interface schema digest
 - requiredまたはoptional
 - object数のminimumとmaximum
 - required rightsとmaximum rights
@@ -101,24 +103,29 @@ rightsの意味はresource typeごとに定義します。
 
 host policyは宣言されたmaximum内でrightsをgrantします。required slotはobject数とrequired rightsを
 満たした時点で有効です。optional slotの不在は明示的に表現します。exclusive slotは一つの
-consumer nodeを持ち、closure-shared slotはすべてのconsumerを列挙します。
+consumer nodeを持ち、closure-shared slotはすべてのconsumerを列挙します。dependency edgeはsymbol
+accessを与え、resource bindingはresource visibilityを与えます。
 
 各resource setはcontrollerが所有します。nodeはclosureのlifetime中だけgeneration-scopedな
 resource IDを受け取ります。native handleはhost adapterが解決します。transport regionのaccess
 rightsとclosure resource rightsは別のdomainです。
 
+generationごとのgrant形式、node resource view、module context、native handle mappingは
+[resource-grants-jp.md](./resource-grants-jp.md)で定義します。
+
 ## lifecycle
 
 起動順は次です。
 
-1. manifest全体とartifact digestを検証
-2. すべてのresource slotをbinding
-3. すべてのartifactをmap
-4. すべてのrelocationとsymbol bindingを完了
-5. dependency順にproviderをinit
-6. root moduleをinit
-7. `READY`を報告
-8. request受付開始
+1. manifest、grant set、artifactの全digestを検証
+2. resourceを一時registryへimport
+3. node resource viewを構築してregistryをcommit
+4. すべてのartifactをmap
+5. すべてのrelocationとsymbol bindingを完了
+6. dependency順にproviderをinit
+7. root moduleをinit
+8. `READY`を報告
+9. request受付開始
 
 initが失敗した場合は、init済みnodeを逆init順にcleanupします。各nodeはinit failureを返す前に、
 自身の部分的な変更をrollbackします。
@@ -130,32 +137,34 @@ initが失敗した場合は、init済みnodeを逆init順にcleanupします。
 3. requestとcallbackをdrain
 4. 逆init順にcleanup
 5. module、shared providerの順にunload
-6. `STOPPED`を報告してsandbox processを終了
-7. process終了を確認
-8. resourceをrevoke
-9. policyが要求するresourceをreset
-10. process recordをreap
-11. resourceをrelease
+6. node resource viewとsandbox registryを破棄
+7. `STOPPED`を報告してsandbox processを終了
+8. process終了を確認
+9. resourceをrevoke
+10. policyが要求するresourceをreset
+11. process recordをreap
+12. resourceをrelease
 
-正常系のinit、quiesce、cleanup entryは各nodeにつき一回実行します。quiesce deadlineの失敗は
-closure faultになります。
+正常系のinit、quiesce、cleanup entryは同じimmutable module contextを使って各nodeにつき一回実行
+します。quiesce deadlineの失敗はclosure faultになります。
 
 ## Linux closure loader
 
-Linux sandboxのclosure loaderは、一つのdecode済みmanifestと、そこに記載された正確なartifact
-object列を受け取ります。codeをmapする前にgraph全体、宣言済みexportとimport、resource binding、
-artifact size、artifact digestを検証します。
+Linux sandboxのclosure loaderは、一つのdecode済みmanifest、一つのdecode済みgrant set、そこに
+記載された正確なartifact列とresource handle列を受け取ります。codeをmapする前にgraph、symbol、
+resource、rights、visibility、native handle map、artifact size、artifact digestを検証します。
 
 loaderは決定的なtopological orderを計算し、すべてのartifactをmapし、各importを指定providerから
 解決し、各nodeを一回だけinitします。外部へ公開するのはnode IDとsymbol名で宣言されたexportだけ
-です。lifecycle exportはLinux moduleと同じ`int entry(void)`形式です。
+です。lifecycle exportは`int entry(const struct kobox_module_context *context)`形式です。
 
-resource bindingはartifact mapより前に明示的なsandbox callbackで完了します。sandbox-runtime
-importは別のresolver callbackとnode zeroを使います。closure importは直接providerのexport table
-だけから解決します。
+resourceはtransactionとしてimportし、artifact mapより前にnode resource viewを通して公開します。
+sandbox-runtime importは別のresolver callbackとnode zeroを使います。closure importは直接providerの
+export tableだけから解決します。
 
 quiesceとcleanupは逆topological orderで行います。init failure時はinit済みnodeを逆順にcleanupし、
-map済みartifactをすべてunloadします。relocatable moduleはshared providerより先にunloadします。
+map済みartifactをすべてunloadし、resource viewを破棄してregistryをreleaseします。relocatable
+moduleはshared providerより先にunloadします。
 
 ## 複数module
 
@@ -192,5 +201,5 @@ controllerはidle configuration時にその内容をcopyします。callerはcon
 
 `kb2_controller_start`は新しいsandbox generationを開始します。順序付きhost actionはread-onlyな
 closure view、digest、limit、opaqueなresource IDとsandbox IDを持ちます。host adapterがnativeな
-allocation、process生成、transfer、正常なprocess停止またはterminate、revoke、reset、reap、
-releaseを実行します。
+allocation、process生成、grant set構築、transfer、正常なprocess停止またはterminate、revoke、reset、
+reap、releaseを実行します。

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: MIT */
 
 #ifndef KOBOX2_TEST_BOOTSTRAP_H
 #define KOBOX2_TEST_BOOTSTRAP_H
@@ -9,9 +9,6 @@
 #define KB2_TEST_BOOTSTRAP_FD 3
 #define KB2_TEST_NOTIFICATION_COUNT 4u
 #define KB2_TEST_TRANSFER_FD_COUNT (1u + KB2_TEST_NOTIFICATION_COUNT)
-#define KB2_TEST_SHARED_ACK_OFFSET 512u
-#define KB2_TEST_COMMAND_REVOKE 1u
-#define KB2_TEST_ACK_REVOKED 1u
 
 typedef struct kb2_test_bootstrap {
     uint64_t generation;
@@ -29,9 +26,5 @@ int kb2_test_receive_bootstrap(int socket_fd,
                                int *file_descriptors_out,
                                size_t file_descriptor_capacity,
                                size_t *file_descriptor_count_out);
-int kb2_test_send_word(int socket_fd, uint32_t value);
-int kb2_test_receive_word(int socket_fd, uint32_t *value_out, int timeout_milliseconds);
-void kb2_test_store_u64(uint8_t *destination, uint64_t value);
-uint64_t kb2_test_load_u64(const uint8_t *source);
 
 #endif

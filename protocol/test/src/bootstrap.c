@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: MIT */
 
 #define _GNU_SOURCE
 
-#include "bootstrap.h"
+#include <kobox2_test/bootstrap.h>
 
 #include <errno.h>
 #include <poll.h>
@@ -32,12 +32,12 @@ static uint32_t kb2_test_load_u32(const uint8_t *source) {
            ((uint32_t)source[2] << 16u) | ((uint32_t)source[3] << 24u);
 }
 
-void kb2_test_store_u64(uint8_t *destination, uint64_t value) {
+static void kb2_test_store_u64(uint8_t *destination, uint64_t value) {
     kb2_test_store_u32(destination, (uint32_t)value);
     kb2_test_store_u32(destination + 4, (uint32_t)(value >> 32u));
 }
 
-uint64_t kb2_test_load_u64(const uint8_t *source) {
+static uint64_t kb2_test_load_u64(const uint8_t *source) {
     return (uint64_t)kb2_test_load_u32(source) |
            ((uint64_t)kb2_test_load_u32(source + 4) << 32u);
 }
@@ -242,36 +242,4 @@ invalid:
     kb2_test_close_descriptors(file_descriptors_out, descriptor_count);
     *file_descriptor_count_out = 0;
     return 0;
-}
-
-int kb2_test_send_word(int socket_fd, uint32_t value) {
-    uint8_t buffer[4];
-    ssize_t sent;
-
-    if (socket_fd < 0) {
-        return 0;
-    }
-    kb2_test_store_u32(buffer, value);
-    do {
-        sent = send(socket_fd, buffer, sizeof(buffer), MSG_NOSIGNAL);
-    } while (sent < 0 && errno == EINTR);
-    return sent == (ssize_t)sizeof(buffer);
-}
-
-int kb2_test_receive_word(int socket_fd, uint32_t *value_out, int timeout_milliseconds) {
-    uint8_t buffer[4];
-    ssize_t received;
-
-    if (socket_fd < 0 || value_out == NULL || timeout_milliseconds < 0 ||
-        !kb2_test_wait_readable(socket_fd, timeout_milliseconds)) {
-        return 0;
-    }
-    do {
-        received = recv(socket_fd, buffer, sizeof(buffer), 0);
-    } while (received < 0 && errno == EINTR);
-    if (received != (ssize_t)sizeof(buffer)) {
-        return 0;
-    }
-    *value_out = kb2_test_load_u32(buffer);
-    return 1;
 }

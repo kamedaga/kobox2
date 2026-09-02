@@ -17,6 +17,7 @@
 #include <string.h>
 #include <sys/eventfd.h>
 #include <sys/mman.h>
+#include <sys/pidfd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -25,8 +26,6 @@
 extern char **environ;
 
 #define KB2_TEST_MINIMUM_SHARED_MEMORY_SIZE 16384u
-#define KB2_TEST_TRANSPORT_BASE UINT64_C(0x100000000)
-#define KB2_TEST_PROTOCOL_ID UINT32_C(0x74657374)
 #define KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS 5000
 
 static void kb2_test_close(int *file_descriptor) {
@@ -51,10 +50,13 @@ static void kb2_test_host_release_local_resources(kb2_test_host_t *host) {
         host->notification_ids[index] = 0;
     }
     kb2_test_close(&host->bootstrap_socket);
+    kb2_test_close(&host->process_fd);
     host->generation = 0;
     host->resource_set_id = 0;
     host->resources_transferred = 0;
     host->resources_revoked = 0;
+    host->abnormal_exit_allowed = 0;
+    host->reap_after_reset = 0;
 }
 
 static int kb2_test_wait_process(pid_t process_id,
@@ -85,6 +87,19 @@ static int kb2_test_wait_process(pid_t process_id,
     return 0;
 }
 
+static int kb2_test_wait_process_fd(int process_fd, int timeout_milliseconds) {
+    struct pollfd descriptor = {
+        .fd = process_fd,
+        .events = POLLIN,
+    };
+    int result;
+
+    do {
+        result = poll(&descriptor, 1, timeout_milliseconds);
+    } while (result < 0 && errno == EINTR);
+    return result == 1 && (descriptor.revents & POLLIN) != 0;
+}
+
 int kb2_test_host_initialize(kb2_test_host_t *host, const char *sandbox_path) {
     size_t index;
 
@@ -95,6 +110,7 @@ int kb2_test_host_initialize(kb2_test_host_t *host, const char *sandbox_path) {
     host->sandbox_path = sandbox_path;
     host->shared_memory = MAP_FAILED;
     host->process_id = -1;
+    host->process_fd = -1;
     host->bootstrap_socket = -1;
     host->shared_memory_fd = -1;
     for (index = 0; index < KB2_TEST_NOTIFICATION_COUNT; ++index) {
@@ -127,16 +143,42 @@ static kb2_status_t kb2_test_host_make_channel(kb2_test_host_t *host,
         .protocol_id = KB2_TEST_PROTOCOL_ID,
         .flags = KB2_PROTOCOL_CHANNEL_FLAG_MANAGEMENT,
     };
-    kb2_protocol_queue_t queues[2] = {0};
-    kb2_protocol_region_t region = {
+    size_t event_index;
+    uint64_t outstanding;
+    size_t index;
+    int notify;
+
+    memset(host->queues, 0, sizeof(host->queues));
+    host->regions[0] = (kb2_protocol_region_t){
         .region_id = 1,
         .rights = KB2_PROTOCOL_REGION_RIGHT_READ | KB2_PROTOCOL_REGION_RIGHT_WRITE,
         .transport_base = KB2_TEST_TRANSPORT_BASE,
-        .length = host->shared_memory_size,
+        .length = KB2_TEST_EVENT_BUFFER_OFFSET,
     };
-    uint64_t outstanding;
-    size_t index;
-
+    host->regions[1] = (kb2_protocol_region_t){
+        .region_id = 2,
+        .rights = KB2_PROTOCOL_REGION_RIGHT_WRITE,
+        .transport_base = KB2_TEST_TRANSPORT_BASE + KB2_TEST_EVENT_BUFFER_OFFSET,
+        .length = 0x1000,
+    };
+    host->regions[2] = (kb2_protocol_region_t){
+        .region_id = 3,
+        .rights = KB2_PROTOCOL_REGION_RIGHT_READ,
+        .transport_base = KB2_TEST_TRANSPORT_BASE + KB2_TEST_REQUEST_BUFFER_OFFSET,
+        .length = 0x1000,
+    };
+    host->regions[3] = (kb2_protocol_region_t){
+        .region_id = 4,
+        .rights = KB2_PROTOCOL_REGION_RIGHT_WRITE,
+        .transport_base = KB2_TEST_TRANSPORT_BASE + KB2_TEST_RESPONSE_BUFFER_OFFSET,
+        .length = 0x1000,
+    };
+    host->regions[4] = (kb2_protocol_region_t){
+        .region_id = 5,
+        .rights = KB2_PROTOCOL_REGION_RIGHT_READ,
+        .transport_base = KB2_TEST_TRANSPORT_BASE + KB2_TEST_INDIRECT_TABLE_OFFSET,
+        .length = 0x1000,
+    };
     if (kb2_action_limit(action, KB2_LIMIT_OUTSTANDING_REQUEST_COUNT, &outstanding) !=
             KB2_STATUS_OK ||
         outstanding == 0 || outstanding > 16) {
@@ -151,39 +193,68 @@ static kb2_status_t kb2_test_host_make_channel(kb2_test_host_t *host,
         host->notification_ids[index] = ++host->next_notification_id;
     }
 
-    queues[0].queue_id = 1;
-    queues[0].role = KB2_PROTOCOL_QUEUE_ROLE_EVENT;
-    queues[0].queue_size = 16;
-    queues[0].descriptor_address = KB2_TEST_TRANSPORT_BASE + 0x1000;
-    queues[0].available_address = KB2_TEST_TRANSPORT_BASE + 0x1100;
-    queues[0].used_address = KB2_TEST_TRANSPORT_BASE + 0x1140;
-    queues[0].available_notification_id = host->notification_ids[0];
-    queues[0].used_notification_id = host->notification_ids[1];
-    queues[0].max_chain_length = 16;
-    queues[0].max_indirect_length = 128;
-    queues[0].max_outstanding = (uint32_t)outstanding;
+    host->queues[0].queue_id = 1;
+    host->queues[0].role = KB2_PROTOCOL_QUEUE_ROLE_EVENT;
+    host->queues[0].queue_size = KB2_TEST_QUEUE_SIZE;
+    host->queues[0].descriptor_address = KB2_TEST_TRANSPORT_BASE + 0x1000;
+    host->queues[0].available_address = KB2_TEST_TRANSPORT_BASE + 0x1100;
+    host->queues[0].used_address = KB2_TEST_TRANSPORT_BASE + 0x1140;
+    host->queues[0].available_notification_id = host->notification_ids[0];
+    host->queues[0].used_notification_id = host->notification_ids[1];
+    host->queues[0].max_chain_length = KB2_TEST_QUEUE_SIZE;
+    host->queues[0].max_indirect_length = 128;
+    host->queues[0].max_outstanding = (uint32_t)outstanding;
 
-    queues[1].queue_id = 2;
-    queues[1].role = KB2_PROTOCOL_QUEUE_ROLE_REQUEST;
-    queues[1].queue_size = 16;
-    queues[1].descriptor_address = KB2_TEST_TRANSPORT_BASE + 0x2000;
-    queues[1].available_address = KB2_TEST_TRANSPORT_BASE + 0x2100;
-    queues[1].used_address = KB2_TEST_TRANSPORT_BASE + 0x2140;
-    queues[1].available_notification_id = host->notification_ids[2];
-    queues[1].used_notification_id = host->notification_ids[3];
-    queues[1].max_chain_length = 16;
-    queues[1].max_indirect_length = 128;
-    queues[1].max_outstanding = (uint32_t)outstanding;
+    host->queues[1].queue_id = 2;
+    host->queues[1].role = KB2_PROTOCOL_QUEUE_ROLE_REQUEST;
+    host->queues[1].queue_size = KB2_TEST_QUEUE_SIZE;
+    host->queues[1].descriptor_address = KB2_TEST_TRANSPORT_BASE + 0x2000;
+    host->queues[1].available_address = KB2_TEST_TRANSPORT_BASE + 0x2100;
+    host->queues[1].used_address = KB2_TEST_TRANSPORT_BASE + 0x2140;
+    host->queues[1].available_notification_id = host->notification_ids[2];
+    host->queues[1].used_notification_id = host->notification_ids[3];
+    host->queues[1].max_chain_length = KB2_TEST_QUEUE_SIZE;
+    host->queues[1].max_indirect_length = 128;
+    host->queues[1].max_outstanding = (uint32_t)outstanding;
 
     if (kb2_protocol_channel_encode(host->shared_memory,
                                     host->shared_memory_size,
                                     &host->channel_descriptor_size,
                                     &channel,
-                                    queues,
+                                    host->queues,
                                     2,
-                                    &region,
-                                    1) != KB2_PROTOCOL_OK) {
+                                    host->regions,
+                                    KB2_TEST_REGION_COUNT) != KB2_PROTOCOL_OK ||
+        kb2_test_vq_bind(&host->event_queue,
+                         host->shared_memory,
+                         host->shared_memory_size,
+                         &host->queues[0],
+                         host->regions,
+                         KB2_TEST_REGION_COUNT,
+                         1) != KB2_TEST_VQ_OK ||
+        kb2_test_vq_bind(&host->request_queue,
+                         host->shared_memory,
+                         host->shared_memory_size,
+                         &host->queues[1],
+                         host->regions,
+                         KB2_TEST_REGION_COUNT,
+                         1) != KB2_TEST_VQ_OK) {
         return KB2_STATUS_HOST_FAILURE;
+    }
+    for (event_index = 0; event_index < KB2_TEST_QUEUE_SIZE; ++event_index) {
+        uint64_t address = KB2_TEST_TRANSPORT_BASE + KB2_TEST_EVENT_BUFFER_OFFSET +
+                           event_index * KB2_TEST_EVENT_BUFFER_STRIDE;
+
+        if (kb2_test_vq_set_descriptor(&host->event_queue,
+                                       (uint16_t)event_index,
+                                       address,
+                                       KB2_TEST_EVENT_BUFFER_STRIDE,
+                                       KB2_TEST_VQ_DESCRIPTOR_FLAG_WRITE,
+                                       0) != KB2_TEST_VQ_OK ||
+            kb2_test_vq_publish(&host->event_queue, (uint16_t)event_index, &notify) !=
+                KB2_TEST_VQ_OK) {
+            return KB2_STATUS_HOST_FAILURE;
+        }
     }
     return KB2_STATUS_OK;
 }
@@ -327,31 +398,22 @@ static kb2_status_t kb2_test_host_launch(kb2_test_host_t *host,
                                       : KB2_STATUS_HOST_FAILURE;
     }
 
+    host->process_fd = pidfd_open(host->process_id, 0);
+    if (host->process_fd < 0) {
+        int process_status;
+
+        kill(host->process_id, SIGKILL);
+        kb2_test_wait_process(
+            host->process_id, &process_status, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS);
+        close(sockets[0]);
+        host->process_id = -1;
+        return KB2_STATUS_HOST_FAILURE;
+    }
+
     host->bootstrap_socket = sockets[0];
     host->sandbox_id = ++host->next_sandbox_id;
     *sandbox_id_out = host->sandbox_id;
     return KB2_STATUS_OK;
-}
-
-static int kb2_test_wait_notification(int file_descriptor) {
-    struct pollfd descriptor = {
-        .fd = file_descriptor,
-        .events = POLLIN,
-    };
-    uint64_t value;
-    ssize_t bytes;
-    int result;
-
-    do {
-        result = poll(&descriptor, 1, 5000);
-    } while (result < 0 && errno == EINTR);
-    if (result != 1 || (descriptor.revents & POLLIN) == 0) {
-        return 0;
-    }
-    do {
-        bytes = read(file_descriptor, &value, sizeof(value));
-    } while (bytes < 0 && errno == EINTR);
-    return bytes == (ssize_t)sizeof(value) && value == 1;
 }
 
 static kb2_status_t kb2_test_host_transfer(kb2_test_host_t *host,
@@ -377,32 +439,44 @@ static kb2_status_t kb2_test_host_transfer(kb2_test_host_t *host,
     if (!kb2_test_send_bootstrap(host->bootstrap_socket,
                                  &bootstrap,
                                  file_descriptors,
-                                 KB2_TEST_TRANSFER_FD_COUNT) ||
-        !kb2_test_wait_notification(host->notification_fds[1]) ||
-        kb2_test_load_u64((const uint8_t *)host->shared_memory + KB2_TEST_SHARED_ACK_OFFSET) !=
-            host->generation) {
+                                 KB2_TEST_TRANSFER_FD_COUNT)) {
         return KB2_STATUS_HOST_FAILURE;
     }
     host->resources_transferred = 1;
+    if (!kb2_test_host_receive_ready(host)) {
+        return KB2_STATUS_HOST_FAILURE;
+    }
+    kb2_test_close(&host->bootstrap_socket);
     return KB2_STATUS_OK;
 }
 
 static kb2_status_t kb2_test_host_revoke(kb2_test_host_t *host, const kb2_action_t *action) {
-    uint32_t acknowledgement;
+    uint64_t action_sandbox_id = kb2_action_sandbox_id(action);
 
     if (!host->resources_transferred || host->resources_revoked ||
         kb2_action_resource_set_id(action) != host->resource_set_id ||
-        kb2_action_sandbox_id(action) != host->sandbox_id ||
-        !kb2_test_send_word(host->bootstrap_socket, KB2_TEST_COMMAND_REVOKE) ||
-        !kb2_test_receive_word(host->bootstrap_socket, &acknowledgement, 5000) ||
-        acknowledgement != KB2_TEST_ACK_REVOKED) {
+        (action_sandbox_id != host->sandbox_id &&
+         !(action_sandbox_id == 0 && host->abnormal_exit_allowed)) ||
+        host->process_id <= 0 || host->process_fd < 0) {
+        return KB2_STATUS_HOST_FAILURE;
+    }
+    if (!host->abnormal_exit_allowed) {
+        if (!kb2_test_host_request_quiesce(host)) {
+            return KB2_STATUS_HOST_FAILURE;
+        }
+    } else if (kill(host->process_id, SIGKILL) != 0 && errno != ESRCH) {
+        return KB2_STATUS_HOST_FAILURE;
+    }
+    if (!kb2_test_wait_process_fd(host->process_fd, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
         return KB2_STATUS_HOST_FAILURE;
     }
     host->resources_revoked = 1;
+    host->reap_after_reset = action_sandbox_id == 0;
     return KB2_STATUS_OK;
 }
 
 static kb2_status_t kb2_test_host_reset(kb2_test_host_t *host, const kb2_action_t *action) {
+    int process_status;
     uint64_t value;
     size_t index;
     ssize_t bytes;
@@ -422,6 +496,15 @@ static kb2_status_t kb2_test_host_reset(kb2_test_host_t *host, const kb2_action_
             return KB2_STATUS_HOST_FAILURE;
         }
     }
+    if (host->reap_after_reset) {
+        if (!kb2_test_wait_process(
+                host->process_id, &process_status, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
+            return KB2_STATUS_HOST_FAILURE;
+        }
+        host->process_id = -1;
+        host->sandbox_id = 0;
+        kb2_test_close(&host->process_fd);
+    }
     return KB2_STATUS_OK;
 }
 
@@ -438,10 +521,12 @@ static kb2_status_t kb2_test_host_terminate(kb2_test_host_t *host,
         return KB2_STATUS_HOST_FAILURE;
     }
     host->process_id = -1;
-    if (!WIFEXITED(process_status) || WEXITSTATUS(process_status) != 0) {
+    if (!host->abnormal_exit_allowed &&
+        (!WIFEXITED(process_status) || WEXITSTATUS(process_status) != 0)) {
         return KB2_STATUS_HOST_FAILURE;
     }
     host->sandbox_id = 0;
+    kb2_test_close(&host->process_fd);
     kb2_test_close(&host->bootstrap_socket);
     return KB2_STATUS_OK;
 }

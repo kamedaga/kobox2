@@ -5,6 +5,13 @@ failure、crash/restartを扱います。protocol testはround trip、境界、s
 field、region right、message envelopeを扱います。
 
 Linuxではtest hostが独立したsandbox processを起動し、bootstrap socketを通じて一つの
-shared-memory objectと四つのnotification objectを転送します。shared memory上の応答と
-notificationを確認し、restartではrevoke、process終了、新しいobject、新しいgenerationを
-検証します。device固有のacceptance testはhost OSリポジトリに置きます。
+shared-memory objectと四つのeventfdを転送します。split virtqueueによりpollingなしで
+request completionとlifecycle eventを処理します。direct/indirect descriptor、
+`EVENT_IDX`、wrap-around、region right、不正入力、quiesce、決定的なprocess fault、pidfdで
+確認するrevoke、reset、reap、再生成を検証します。device固有のacceptance testはhost OS
+リポジトリに置きます。
+
+GPL sandbox fixtureは`fixture_core.so`をloadし、ET_RELの`fixture_module.ko`を再配置して
+initとcleanup entryを呼びます。moduleはallocation、lock、wait/wake、二本のnative
+thread、per-CPU state、RCU grace period、monotonic timeを実行し、request virtqueueへ結果を
+返します。

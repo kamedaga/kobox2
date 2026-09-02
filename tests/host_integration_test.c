@@ -5,17 +5,15 @@
 
 #include "host/linux_host_adapter.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#define CHECK(expression)                                                                          \
-    do {                                                                                           \
-        if (!(expression)) {                                                                       \
-            fprintf(stderr, "check failed at %s:%d: %s\n", __FILE__, __LINE__, #expression);      \
-            goto finish;                                                                           \
-        }                                                                                          \
-    } while (0)
+#define KB2_TEST_BATCH_COUNT 256u
 
 static void *test_allocate(void *context, size_t size) {
     (void)context;
@@ -79,67 +77,241 @@ static int drive_actions(kb2_controller_t *controller, kb2_test_host_t *host) {
     return 1;
 }
 
-int main(int argument_count, char **arguments) {
+static int start_running(kb2_controller_t *controller,
+                         kb2_test_host_t *host,
+                         uint64_t *generation_out) {
+    if (kb2_controller_start(controller) != KB2_STATUS_OK ||
+        !drive_actions(controller, host) ||
+        kb2_controller_state(controller) != KB2_STATE_HANDSHAKING) {
+        return 0;
+    }
+    *generation_out = kb2_controller_generation(controller);
+    return *generation_out != 0 &&
+           kb2_controller_report_ready(controller, *generation_out) == KB2_STATUS_OK &&
+           kb2_controller_state(controller) == KB2_STATE_RUNNING;
+}
+
+static int identifiers_are_fresh(const kb2_test_host_t *host,
+                                 uint64_t resource_set_id,
+                                 uint64_t sandbox_id,
+                                 const uint32_t notification_ids[KB2_TEST_NOTIFICATION_COUNT]) {
+    size_t current;
+    size_t previous;
+
+    if (kb2_test_host_resource_set_id(host) == resource_set_id ||
+        kb2_test_host_sandbox_id(host) == sandbox_id) {
+        return 0;
+    }
+    for (current = 0; current < KB2_TEST_NOTIFICATION_COUNT; ++current) {
+        for (previous = 0; previous < KB2_TEST_NOTIFICATION_COUNT; ++previous) {
+            if (host->notification_ids[current] == notification_ids[previous]) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+static int stop_and_release(kb2_controller_t *controller, kb2_test_host_t *host) {
+    return kb2_controller_stop(controller) == KB2_STATUS_OK &&
+           drive_actions(controller, host) &&
+           kb2_controller_state(controller) == KB2_STATE_IDLE &&
+           kb2_test_host_is_released(host);
+}
+
+static int run_transport_and_normal_restart(const char *sandbox_path) {
     kb2_controller_t *controller = NULL;
     kb2_test_host_t host;
     uint64_t first_generation;
     uint64_t first_resource_set_id;
     uint64_t first_sandbox_id;
     uint32_t first_notification_ids[KB2_TEST_NOTIFICATION_COUNT];
-    size_t current;
-    size_t previous;
-    int host_initialized = 0;
-    int result = 1;
+    struct stat old_memory_status;
+    struct stat new_memory_status;
+    void *old_memory = MAP_FAILED;
+    size_t old_memory_size = 0;
+    int old_memory_fd = -1;
+    int old_notification_fd = -1;
+    size_t batch;
+    int success = 0;
+
+    if (!kb2_test_host_initialize(&host, sandbox_path)) {
+        return 0;
+    }
+    if (kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) !=
+            KB2_STATUS_OK ||
+        !configure_controller(controller) ||
+        !start_running(controller, &host, &first_generation) ||
+        !kb2_test_host_echo(&host, UINT64_C(0x1122334455667788), 0) ||
+        !kb2_test_host_echo(&host, UINT64_C(0x8877665544332211), 1)) {
+        goto finish;
+    }
+    for (batch = 0; batch < KB2_TEST_BATCH_COUNT; ++batch) {
+        if (!kb2_test_host_echo_batch(
+                &host, (uint64_t)batch * KB2_TEST_QUEUE_SIZE, KB2_TEST_QUEUE_SIZE)) {
+            goto finish;
+        }
+    }
+
+    first_resource_set_id = kb2_test_host_resource_set_id(&host);
+    first_sandbox_id = kb2_test_host_sandbox_id(&host);
+    memcpy(first_notification_ids, host.notification_ids, sizeof(first_notification_ids));
+    old_memory_size = host.shared_memory_size;
+    old_memory_fd = dup(host.shared_memory_fd);
+    old_notification_fd = dup(host.notification_fds[3]);
+    if (old_memory_fd < 0 || old_notification_fd < 0 ||
+        fstat(old_memory_fd, &old_memory_status) != 0) {
+        goto finish;
+    }
+    old_memory = mmap(NULL, old_memory_size, PROT_READ | PROT_WRITE, MAP_SHARED, old_memory_fd, 0);
+    if (old_memory == MAP_FAILED) {
+        goto finish;
+    }
+    if (kb2_controller_restart(controller) != KB2_STATUS_OK ||
+        !drive_actions(controller, &host) ||
+        kb2_controller_state(controller) != KB2_STATE_HANDSHAKING ||
+        kb2_controller_generation(controller) != first_generation + 1u ||
+        !identifiers_are_fresh(
+            &host, first_resource_set_id, first_sandbox_id, first_notification_ids) ||
+        fstat(host.shared_memory_fd, &new_memory_status) != 0 ||
+        (new_memory_status.st_dev == old_memory_status.st_dev &&
+         new_memory_status.st_ino == old_memory_status.st_ino)) {
+        goto finish;
+    }
+    {
+        uint64_t notification = 1;
+        uint64_t received;
+        ssize_t bytes;
+
+        memset(old_memory, 0xa5, old_memory_size);
+        do {
+            bytes = write(old_notification_fd, &notification, sizeof(notification));
+        } while (bytes < 0 && errno == EINTR);
+        if (bytes != (ssize_t)sizeof(notification)) {
+            goto finish;
+        }
+        do {
+            bytes = read(host.notification_fds[3], &received, sizeof(received));
+        } while (bytes < 0 && errno == EINTR);
+        if (bytes >= 0 || errno != EAGAIN) {
+            goto finish;
+        }
+    }
+    if (kb2_controller_report_ready(controller, first_generation) !=
+            KB2_STATUS_STALE_GENERATION ||
+        kb2_controller_report_ready(controller, first_generation + 1u) != KB2_STATUS_OK ||
+        !kb2_test_host_echo(&host, UINT64_C(0xa5a55a5adeadbeef), 1) ||
+        !stop_and_release(controller, &host)) {
+        goto finish;
+    }
+    success = 1;
+
+finish:
+    if (!success) {
+        fprintf(stderr, "transport/normal restart scenario failed\n");
+    }
+    if (old_memory != MAP_FAILED) {
+        munmap(old_memory, old_memory_size);
+    }
+    if (old_memory_fd >= 0) {
+        close(old_memory_fd);
+    }
+    if (old_notification_fd >= 0) {
+        close(old_notification_fd);
+    }
+    kb2_test_host_destroy(&host);
+    if (controller != NULL) {
+        kb2_controller_destroy(controller);
+    }
+    return success;
+}
+
+static int run_fault_restart(const char *sandbox_path,
+                             kb2_test_fault_scenario_t scenario,
+                             kb2_fault_kind_t expected_fault_kind) {
+    kb2_controller_t *controller = NULL;
+    kb2_test_host_t host;
+    kb2_fault_kind_t fault_kind;
+    uint64_t fault_code;
+    uint64_t first_generation;
+    uint64_t first_resource_set_id;
+    uint64_t first_sandbox_id;
+    uint32_t first_notification_ids[KB2_TEST_NOTIFICATION_COUNT];
+    int success = 0;
+
+    if (!kb2_test_host_initialize(&host, sandbox_path)) {
+        return 0;
+    }
+    if (kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) !=
+            KB2_STATUS_OK ||
+        !configure_controller(controller) ||
+        !start_running(controller, &host, &first_generation)) {
+        goto finish;
+    }
+    first_resource_set_id = kb2_test_host_resource_set_id(&host);
+    first_sandbox_id = kb2_test_host_sandbox_id(&host);
+    memcpy(first_notification_ids, host.notification_ids, sizeof(first_notification_ids));
+
+    if (!kb2_test_host_inject_fault(&host, scenario, &fault_kind, &fault_code) ||
+        fault_kind != expected_fault_kind || fault_code != (uint64_t)scenario ||
+        kb2_controller_report_fault(controller, first_generation, fault_kind, fault_code) !=
+            KB2_STATUS_OK ||
+        kb2_controller_state(controller) != KB2_STATE_FAULTED ||
+        kb2_controller_restart(controller) != KB2_STATUS_OK ||
+        !drive_actions(controller, &host) ||
+        kb2_controller_state(controller) != KB2_STATE_HANDSHAKING ||
+        kb2_controller_generation(controller) != first_generation + 1u ||
+        !identifiers_are_fresh(
+            &host, first_resource_set_id, first_sandbox_id, first_notification_ids) ||
+        kb2_controller_report_ready(controller, first_generation) !=
+            KB2_STATUS_STALE_GENERATION ||
+        kb2_controller_report_ready(controller, first_generation + 1u) != KB2_STATUS_OK ||
+        !kb2_test_host_echo(&host, UINT64_C(0xf00d0000) + (uint64_t)scenario, 1) ||
+        !stop_and_release(controller, &host)) {
+        goto finish;
+    }
+    success = 1;
+
+finish:
+    if (!success) {
+        fprintf(stderr, "fault/restart scenario %u failed\n", (unsigned int)scenario);
+    }
+    kb2_test_host_destroy(&host);
+    if (controller != NULL) {
+        kb2_controller_destroy(controller);
+    }
+    return success;
+}
+
+int main(int argument_count, char **arguments) {
+    static const struct {
+        kb2_test_fault_scenario_t scenario;
+        kb2_fault_kind_t kind;
+    } fault_scenarios[] = {
+        {KB2_TEST_FAULT_KILL_BEFORE_ACQUIRE, KB2_FAULT_PROCESS_EXIT},
+        {KB2_TEST_FAULT_KILL_AFTER_ACQUIRE, KB2_FAULT_PROCESS_EXIT},
+        {KB2_TEST_FAULT_KILL_AFTER_USED, KB2_FAULT_PROCESS_EXIT},
+        {KB2_TEST_FAULT_BAD_USED_ID, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_GENERATION, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_ENVELOPE, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_CHAIN, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_LENGTH, KB2_FAULT_PROTOCOL},
+        {KB2_TEST_FAULT_BAD_RIGHTS, KB2_FAULT_PROTOCOL},
+    };
+    size_t index;
 
     if (argument_count != 2) {
         fprintf(stderr, "usage: %s SANDBOX_CHILD\n", arguments[0]);
         return 2;
     }
-    CHECK(kb2_test_host_initialize(&host, arguments[1]));
-    host_initialized = 1;
-    CHECK(kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) ==
-          KB2_STATUS_OK);
-    CHECK(configure_controller(controller));
-
-    CHECK(kb2_controller_start(controller) == KB2_STATUS_OK);
-    CHECK(drive_actions(controller, &host));
-    CHECK(kb2_controller_state(controller) == KB2_STATE_HANDSHAKING);
-    first_generation = kb2_controller_generation(controller);
-    first_resource_set_id = kb2_test_host_resource_set_id(&host);
-    first_sandbox_id = kb2_test_host_sandbox_id(&host);
-    CHECK(first_generation != 0 && first_resource_set_id != 0 && first_sandbox_id != 0);
-    CHECK(host.process_id > 0);
-    memcpy(first_notification_ids, host.notification_ids, sizeof(first_notification_ids));
-    CHECK(kb2_controller_report_ready(controller, first_generation) == KB2_STATUS_OK);
-    CHECK(kb2_controller_state(controller) == KB2_STATE_RUNNING);
-
-    CHECK(kb2_controller_restart(controller) == KB2_STATUS_OK);
-    CHECK(drive_actions(controller, &host));
-    CHECK(kb2_controller_state(controller) == KB2_STATE_HANDSHAKING);
-    CHECK(kb2_controller_generation(controller) == first_generation + 1);
-    CHECK(kb2_test_host_resource_set_id(&host) != first_resource_set_id);
-    CHECK(kb2_test_host_sandbox_id(&host) != first_sandbox_id);
-    for (current = 0; current < KB2_TEST_NOTIFICATION_COUNT; ++current) {
-        for (previous = 0; previous < KB2_TEST_NOTIFICATION_COUNT; ++previous) {
-            CHECK(host.notification_ids[current] != first_notification_ids[previous]);
+    if (!run_transport_and_normal_restart(arguments[1])) {
+        return 1;
+    }
+    for (index = 0; index < sizeof(fault_scenarios) / sizeof(fault_scenarios[0]); ++index) {
+        if (!run_fault_restart(
+                arguments[1], fault_scenarios[index].scenario, fault_scenarios[index].kind)) {
+            return 1;
         }
     }
-    CHECK(kb2_controller_report_ready(controller, first_generation) ==
-          KB2_STATUS_STALE_GENERATION);
-    CHECK(kb2_controller_report_ready(controller, first_generation + 1) == KB2_STATUS_OK);
-
-    CHECK(kb2_controller_stop(controller) == KB2_STATUS_OK);
-    CHECK(drive_actions(controller, &host));
-    CHECK(kb2_controller_state(controller) == KB2_STATE_IDLE);
-    CHECK(kb2_test_host_is_released(&host));
-    result = 0;
-
-finish:
-    if (host_initialized) {
-        kb2_test_host_destroy(&host);
-    }
-    if (controller != NULL) {
-        kb2_controller_destroy(controller);
-    }
-    return result;
+    return 0;
 }

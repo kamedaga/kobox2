@@ -8,6 +8,9 @@ restart generationの監督を担当します。
 
 device data pathは所有せず、Linux APIも解釈しません。
 
+controller API、host contract、transport、role protocolは一つの`dev` interfaceです。
+明示的にfreezeするまでABI番号を割り当てません。
+
 ## Linux sandbox
 
 GPL-2.0-onlyのsandboxは独立processです。`.so`/`.ko` self-loader、Linux core
@@ -29,8 +32,8 @@ packagingを所有します。そのためPachaOS portはこのリポジトリ�
 1. sandbox lifecycleとfixture module
 2. virtio-gpu VirGL command submissionとrender node
 3. PachaOS `gpud`経由のMesa、Xorg、Xfce GPU acceleration
-4. 同じcontroller境界を使うNVMeとext4
-5. 長期GPU profileとしてRX 9060 XT上のAMDGPU
+4. 同じGPU protocolを使うRX 9060 XT上のAMDGPU
+5. 同じcontroller境界を使うNVMeとext4
 
 virtio-gpu 2D renderingはmilestoneにもfallback経路にも含めません。VirGLのgateでは
 実際の3D submissionを必須とし、llvmpipe/swrast fallbackを拒否します。

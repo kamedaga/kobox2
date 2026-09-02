@@ -1,5 +1,8 @@
 # Ring transport
 
+This transport is part of the unnumbered `dev` interface. All peers use the
+same schema digest until an explicit ABI freeze.
+
 ## Model
 
 kobox2 uses the Virtio 1.0 little-endian split virtqueue layout. Each channel
@@ -21,11 +24,12 @@ and device interface.
 - The channel descriptor fixes queue size, maximum chain and indirect-table
   lengths, and maximum outstanding requests.
 
-The channel descriptor contains its size, transport version, feature bits,
-channel ID, sandbox generation, queue definitions, notification endpoints,
-and transport-address regions. Reserved fields are zero. Compatible extensions
-increase the descriptor size and select feature bits; incompatible layouts
-increase the transport major version.
+The channel descriptor contains its size, ABI identity, schema digest, feature
+bits, channel ID, sandbox generation, queue definitions, notification endpoints,
+and transport-address regions. The ABI identity is `dev`, not a number. Reserved
+fields are zero. The identity is the four bytes `dev\0`; the schema digest is
+SHA-256 over the canonical schema bundle. A mismatch rejects channel
+establishment.
 
 ## Addressing
 
@@ -45,8 +49,7 @@ Every request, response, and event starts with this little-endian envelope:
 | Field | Type |
 |---|---|
 | protocol ID | `u32` |
-| protocol major | `u16` |
-| protocol minor | `u16` |
+| ABI identity (`dev\0`) | `u8[4]` |
 | opcode | `u32` |
 | flags | `u32` |
 | generation | `u64` |
@@ -66,7 +69,8 @@ used length records the bytes written into writable descriptors.
 - `EVENT_IDX` controls coalescible wake notifications; ring indices are the
   authoritative progress state.
 - Consumers validate descriptor indices, chain structure, lengths, address
-  bounds, rights, generation, message size, version, flags, and reserved fields.
+  bounds, rights, generation, message size, ABI identity, flags, and
+  reserved fields.
   A validation failure moves the channel to `FAULTED` and emits a control fault.
 - Each sandbox generation receives new virtqueue memory, channel IDs, address
   registrations, and notification endpoints. Restart orders capability

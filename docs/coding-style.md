@@ -70,15 +70,14 @@ The protocol is a serialized wire format, not a shared native C structure.
   `packed` layout. Decode and encode fields through bounded helpers.
 - Validate every offset, length, alignment, object generation, and completion
   generation before use.
-- Send reserved fields as zero and reject nonzero reserved fields unless a
-  protocol version explicitly defines them.
+- Send reserved fields as zero and reject nonzero reserved fields unless the
+  current schema explicitly defines them.
 - Treat the schema as the source of truth. Do not edit generated headers or
   encoders directly.
-- Before the first ABI freeze, prefer a clean breaking correction over an
-  accidental compatibility promise. After a freeze, change the explicit
-  protocol version.
-- Never append an opcode arbitrarily merely to avoid renumbering an unfrozen
-  ABI. Keep related values in a coherent order.
+- All controller, host-contract, transport, and protocol interfaces use the
+  unnumbered `dev` status until an explicit ABI freeze.
+- In `dev`, prefer a clean breaking correction over an accidental compatibility
+  promise and keep related values in a coherent order.
 
 ## linux-sandbox
 

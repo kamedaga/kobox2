@@ -6,3 +6,5 @@
 ```text
 SPDX-License-Identifier: MIT
 ```
+
+すべてのschemaは`dev`です。明示的にfreezeするまでABI番号と互換性保証を持ちません。

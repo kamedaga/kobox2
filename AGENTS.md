@@ -12,5 +12,6 @@
   host kernel object layouts.
 - Files shared with `linux-sandbox` belong under `protocol/` and must retain
   their MIT SPDX identifier.
-- Do not invent compatibility guarantees before the first protocol version is
-  explicitly frozen.
+- Treat the controller API, host contract, transport, and wire protocols as one
+  `dev` interface. Do not assign ABI version numbers or compatibility guarantees
+  before an explicit freeze.

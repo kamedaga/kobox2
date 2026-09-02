@@ -62,12 +62,11 @@ protocolはserializeされたwire formatであり、native C構造体の共有�
   上限検査を行うhelperでfieldをdecode、encodeします。
 - 利用前にすべてのoffset、length、alignment、object generation、completion generationを
   検証します。
-- reserved fieldはzeroで送信し、protocol versionで定義されていないnonzero値を
-  拒否します。
+- reserved fieldはzeroで送信し、現在のschemaで定義されていないnonzero値を拒否します。
 - schemaを正本とし、生成headerやencoderを直接編集しません。
-- 最初のABI freeze前は、偶発的な互換性を約束するより明快な破壊的修正を優先します。
-  freeze後は明示的なprotocol versionを変更します。
-- freeze前ABIの番号を維持するためだけにopcodeを末尾へ追加しません。関連する値を
+- controller、host contract、transport、protocol interfaceは明示的なABI freezeまで
+  番号なしの`dev` statusを使います。
+- `dev`では偶発的な互換性を約束するより明快な破壊的修正を優先し、関連する値を
   一貫した順序に保ちます。
 
 ## linux-sandbox

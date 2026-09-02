@@ -19,5 +19,5 @@ PachaOS gpud + kobox2 controller
 git clone --recurse-submodules https://github.com/kamedaga/kobox2.git
 ```
 
-The project is currently at the repository-bootstrap stage; there is no stable
-controller or wire ABI yet.
+The project version is `dev`. No controller, host-contract, transport, or wire
+ABI number is assigned until an explicit freeze.

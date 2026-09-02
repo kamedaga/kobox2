@@ -8,6 +8,9 @@ channels, transfers bounded resources, and supervises restart generations.
 
 It does not own the device data path and does not understand Linux APIs.
 
+Its API, host contract, transport, and role protocols form one `dev` interface.
+They receive no ABI version number until an explicit freeze.
+
 ## Linux sandbox
 
 The GPL-2.0-only sandbox is a separate process. It owns the `.so`/`.ko`
@@ -29,8 +32,8 @@ The initial development order is:
 1. sandbox lifecycle and a fixture module;
 2. virtio-gpu VirGL command submission and render-node operation;
 3. Mesa, Xorg and Xfce acceleration through PachaOS `gpud`;
-4. NVMe and ext4 through the same controller boundary;
-5. AMDGPU on RX 9060 XT as the long-term GPU profile.
+4. AMDGPU on RX 9060 XT through the same GPU protocol;
+5. NVMe and ext4 through the same controller boundary.
 
 Virtio-gpu 2D rendering is not a milestone or fallback path. The VirGL gate
 will require real 3D submission and reject llvmpipe/swrast fallback.

@@ -1,5 +1,8 @@
 # ring transport
 
+このtransportは番号なしの`dev` interfaceに含まれます。明示的なABI freezeまでは、
+すべてのpeerが同じschema digestを使います。
+
 ## model
 
 kobox2はVirtio 1.0 little-endian split virtqueue layoutを使います。各channelは一つの
@@ -20,10 +23,11 @@ sandboxとdevice interfaceが所有します。
 - queue size、最大chain長、最大indirect table長、最大outstanding request数をchannel
   descriptorで固定します。
 
-channel descriptorはdescriptor size、transport version、feature bit、channel ID、
-sandbox generation、queue定義、notification endpoint、transport-address regionを
-持ちます。reserved fieldはzeroです。互換拡張ではdescriptor sizeとfeature bitを使い、
-互換性の異なるlayoutではtransport major versionを更新します。
+channel descriptorはdescriptor size、ABI identity、schema digest、feature bit、channel
+ID、sandbox generation、queue定義、notification endpoint、transport-address regionを
+持ちます。ABI identityは番号ではなく4 byteの`dev\0`です。schema digestはcanonical
+schema bundleのSHA-256で、reserved fieldはzeroです。一致しなければchannel確立を
+拒否します。
 
 ## addressing
 
@@ -42,8 +46,7 @@ host portがregistrationとnative shared-memory capabilityを対応付けます�
 | field | type |
 |---|---|
 | protocol ID | `u32` |
-| protocol major | `u16` |
-| protocol minor | `u16` |
+| ABI identity (`dev\0`) | `u8[4]` |
 | opcode | `u32` |
 | flags | `u32` |
 | generation | `u64` |
@@ -62,8 +65,8 @@ used lengthにはwritable descriptorへ書いたbyte数を記録します。
   clientはacquire barrier後にresponseを読みます。
 - `EVENT_IDX`が集約可能なwake notificationを制御し、ring indexを進捗状態の正本とします。
 - consumerはdescriptor index、chain構造、length、address範囲、right、generation、message
-  size、version、flags、reserved fieldを検証します。検証failureではchannelを`FAULTED`へ
-  移し、control faultを発行します。
+  size、ABI identity、flags、reserved fieldを検証します。検証failureではchannelを
+  `FAULTED`へ移し、control faultを発行します。
 - 各sandbox generationへ新しいvirtqueue memory、channel ID、address registration、
   notification endpointを割り当てます。restartはcapability revoke、device reset、
   process終了、割り当て、転送、control handshakeの順です。

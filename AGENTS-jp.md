@@ -10,6 +10,7 @@
   Apache-2.0 controller codeをそのprocessへlinkしません。
 - wire messageにはpointer、host FD番号、host kernel object layoutを含めません。
 - `linux-sandbox`と共有するfileは`protocol/`に置き、MITのSPDX identifierを維持します。
-- 最初のprotocol versionを明示的にfreezeするまでは、互換性を約束しません。
+- controller API、host contract、transport、wire protocolを一つの`dev` interfaceとして
+  扱います。明示的にfreezeするまでABI番号と互換性を割り当てません。
 
 実際にagentへ適用される正本は[`AGENTS.md`](./AGENTS.md)です。

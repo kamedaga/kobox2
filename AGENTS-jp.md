@@ -1,5 +1,7 @@
 # kobox2 agent notes（日本語版）
 
+- 所有code、protocol serialization、文書pair、host integration境界には
+  [`docs/coding-style-jp.md`](./docs/coding-style-jp.md)の規約を適用します。
 - このリポジトリをhost非依存に保ちます。PachaOS固有のrole policyとpackagingは
   PachaOSリポジトリに置きます。
 - Apache-2.0 controllerへLinux header、Linux構造体layout、module symbol、subsystem

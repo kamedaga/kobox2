@@ -1,5 +1,7 @@
 # kobox2 agent notes
 
+- Follow [`docs/coding-style.md`](./docs/coding-style.md) for owned code,
+  protocol serialization, documentation pairs, and host-integration boundaries.
 - Keep this repository host-independent. PachaOS role policy and packaging
   belong in the PachaOS repository.
 - Do not include Linux headers or implement Linux structure layouts, module

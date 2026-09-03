@@ -1,0 +1,218 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.gpu.drm-virtgpu",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "base_schema": "kobox2.gpu",
+  "uapi_release": "Linux 6.18.48",
+  "uapi_headers": ["drm/virtgpu_drm.h"],
+  "constants": {
+    "set_id": 3,
+    "command_count": 11,
+    "record_count": 20,
+    "max_command_bytes": 16777216,
+    "max_bo_handles": 65536,
+    "max_syncobjs": 65536,
+    "max_capset_bytes": 1048576,
+    "max_context_params": 4,
+    "max_debug_name_bytes": 64,
+    "exec_flag_fence_in": 1,
+    "exec_flag_fence_out": 2,
+    "exec_flag_ring_index": 4,
+    "context_parameter_capset_id": 1,
+    "context_parameter_ring_count": 2,
+    "context_parameter_poll_ring_mask": 4,
+    "context_parameter_debug_name": 8,
+    "command_map": 1,
+    "command_execbuffer": 2,
+    "command_getparam": 3,
+    "command_resource_create": 4,
+    "command_resource_info": 5,
+    "command_transfer_from_host_3d": 6,
+    "command_transfer_to_host_3d": 7,
+    "command_wait": 8,
+    "command_get_caps": 9,
+    "command_resource_create_blob": 10,
+    "command_context_init": 11
+  },
+  "records": [
+    { "id": 101, "name": "map_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "mapping_rights", "type": "u32" }
+    ] },
+    { "id": 102, "name": "mapping_result", "fields": [
+      { "name": "mapping_id", "type": "u64" },
+      { "name": "length", "type": "u64" },
+      { "name": "cache_policy", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 103, "name": "execbuffer_request", "fields": [
+      { "name": "flags", "type": "u32" },
+      { "name": "ring_index", "type": "u32" },
+      { "name": "command_bytes", "type": "u32" },
+      { "name": "bo_handle_count", "type": "u32" },
+      { "name": "input_syncobj_count", "type": "u32" },
+      { "name": "output_syncobj_count", "type": "u32" }
+    ] },
+    { "id": 104, "name": "byte", "fields": [
+      { "name": "value", "type": "u8" }
+    ] },
+    { "id": 105, "name": "handle_u32", "fields": [
+      { "name": "handle", "type": "u32" }
+    ] },
+    { "id": 106, "name": "exec_syncobj", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "point", "type": "u64" }
+    ] },
+    { "id": 107, "name": "execbuffer_result", "fields": [
+      { "name": "flags", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 108, "name": "getparam_request", "fields": [
+      { "name": "parameter", "type": "u64" }
+    ] },
+    { "id": 109, "name": "scalar_u64", "fields": [
+      { "name": "value", "type": "u64" }
+    ] },
+    { "id": 110, "name": "resource_create_request", "fields": [
+      { "name": "target", "type": "u32" },
+      { "name": "format", "type": "u32" },
+      { "name": "bind", "type": "u32" },
+      { "name": "width", "type": "u32" },
+      { "name": "height", "type": "u32" },
+      { "name": "depth", "type": "u32" },
+      { "name": "array_size", "type": "u32" },
+      { "name": "last_level", "type": "u32" },
+      { "name": "sample_count", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "backing_handle", "type": "u32" },
+      { "name": "requested_size", "type": "u32" },
+      { "name": "requested_stride", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 111, "name": "resource_create_result", "fields": [
+      { "name": "bo_handle", "type": "u32" },
+      { "name": "resource_handle", "type": "u32" },
+      { "name": "size", "type": "u32" },
+      { "name": "stride", "type": "u32" }
+    ] },
+    { "id": 112, "name": "resource_info_request", "fields": [
+      { "name": "bo_handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 113, "name": "resource_info_result", "fields": [
+      { "name": "resource_handle", "type": "u32" },
+      { "name": "size", "type": "u32" },
+      { "name": "blob_memory", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 114, "name": "transfer_request", "fields": [
+      { "name": "bo_handle", "type": "u32" },
+      { "name": "x", "type": "u32" },
+      { "name": "y", "type": "u32" },
+      { "name": "z", "type": "u32" },
+      { "name": "width", "type": "u32" },
+      { "name": "height", "type": "u32" },
+      { "name": "depth", "type": "u32" },
+      { "name": "level", "type": "u32" },
+      { "name": "offset", "type": "u32" },
+      { "name": "stride", "type": "u32" },
+      { "name": "layer_stride", "type": "u32" }
+    ] },
+    { "id": 115, "name": "wait_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 116, "name": "get_caps_request", "fields": [
+      { "name": "capset_id", "type": "u32" },
+      { "name": "capset_version", "type": "u32" },
+      { "name": "response_capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 117, "name": "get_caps_result", "fields": [
+      { "name": "response_bytes", "type": "u32" },
+      { "name": "required_bytes", "type": "u32" }
+    ] },
+    { "id": 118, "name": "resource_create_blob_request", "fields": [
+      { "name": "blob_memory", "type": "u32" },
+      { "name": "blob_flags", "type": "u32" },
+      { "name": "size", "type": "u64" },
+      { "name": "command_bytes", "type": "u32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "blob_id", "type": "u64" }
+    ] },
+    { "id": 119, "name": "resource_create_blob_result", "fields": [
+      { "name": "bo_handle", "type": "u32" },
+      { "name": "resource_handle", "type": "u32" }
+    ] },
+    { "id": 120, "name": "context_init_request", "fields": [
+      { "name": "parameter_mask", "type": "u32" },
+      { "name": "capset_id", "type": "u32" },
+      { "name": "ring_count", "type": "u32" },
+      { "name": "debug_name_bytes", "type": "u32" },
+      { "name": "poll_ring_mask", "type": "u64" }
+    ] }
+  ],
+  "command_set": {
+    "set_id": 3,
+    "queue_class": "execution",
+    "argument_model": "kobox2.gpu.argument-vector",
+    "inline_argument_id": 1,
+    "commands": [
+      { "id": 1, "name": "map", "uapi_command": "DRM_IOCTL_VIRTGPU_MAP", "uapi_number": 1, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "map_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "mapping_result", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "mapping", "class": "memory", "ownership": "share", "optional": false }
+        ] } },
+      { "id": 2, "name": "execbuffer", "uapi_command": "DRM_IOCTL_VIRTGPU_EXECBUFFER", "uapi_number": 2, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "execbuffer_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "command", "direction": "input", "records": ["byte"], "minimum": 1, "maximum": 16777216 },
+          { "argument_id": 3, "role": 2, "name": "bo_handles", "direction": "input", "records": ["handle_u32"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 4, "role": 3, "name": "input_syncobjs", "direction": "input", "records": ["exec_syncobj"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 5, "role": 4, "name": "output_syncobjs", "direction": "input", "records": ["exec_syncobj"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [
+          { "argument_id": 6, "role": 1, "name": "input_fence", "class": "sync_file", "ownership": "share", "optional": true }
+        ] },
+        "completion": { "inline_record": "execbuffer_result", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "output_fence", "class": "sync_file", "ownership": "move", "optional": true }
+        ] } },
+      { "id": 3, "name": "getparam", "uapi_command": "DRM_IOCTL_VIRTGPU_GETPARAM", "uapi_number": 3, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "getparam_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "scalar_u64", "spans": [], "attachments": [] } },
+      { "id": 4, "name": "resource_create", "uapi_command": "DRM_IOCTL_VIRTGPU_RESOURCE_CREATE", "uapi_number": 4, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "resource_create_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "resource_create_result", "spans": [], "attachments": [] } },
+      { "id": 5, "name": "resource_info", "uapi_command": "DRM_IOCTL_VIRTGPU_RESOURCE_INFO", "uapi_number": 5, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "resource_info_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "resource_info_result", "spans": [], "attachments": [] } },
+      { "id": 6, "name": "transfer_from_host_3d", "uapi_command": "DRM_IOCTL_VIRTGPU_TRANSFER_FROM_HOST", "uapi_number": 6, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "transfer_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 7, "name": "transfer_to_host_3d", "uapi_command": "DRM_IOCTL_VIRTGPU_TRANSFER_TO_HOST", "uapi_number": 7, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "transfer_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 8, "name": "wait", "uapi_command": "DRM_IOCTL_VIRTGPU_WAIT", "uapi_number": 8, "cancellation": "wait", "deadline": "required",
+        "request": { "inline_record": "wait_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 9, "name": "get_caps", "uapi_command": "DRM_IOCTL_VIRTGPU_GET_CAPS", "uapi_number": 9, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "get_caps_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "response", "direction": "output", "records": ["byte"], "minimum": 0, "maximum": 1048576 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "get_caps_result", "spans": [], "attachments": [] } },
+      { "id": 10, "name": "resource_create_blob", "uapi_command": "DRM_IOCTL_VIRTGPU_RESOURCE_CREATE_BLOB", "uapi_number": 10, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "resource_create_blob_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "command", "direction": "input", "records": ["byte"], "minimum": 0, "maximum": 16777216 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "resource_create_blob_result", "spans": [], "attachments": [] } },
+      { "id": 11, "name": "context_init", "uapi_command": "DRM_IOCTL_VIRTGPU_CONTEXT_INIT", "uapi_number": 11, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "context_init_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "debug_name", "direction": "input", "records": ["byte"], "minimum": 0, "maximum": 64 }
+        ], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } }
+    ]
+  },
+  "structures": {}
+}

@@ -1,0 +1,636 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.gpu.drm-amdgpu",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "base_schema": "kobox2.gpu",
+  "uapi_release": "Linux 6.18.48",
+  "uapi_headers": ["drm/amdgpu_drm.h"],
+  "constants": {
+    "set_id": 4,
+    "command_count": 20,
+    "record_count": 72,
+    "info_query_count": 27,
+    "cs_chunk_count": 10,
+    "max_bo_list_entries": 65536,
+    "max_cs_chunks": 64,
+    "max_cs_chunk_records": 65536,
+    "max_info_bytes": 1048576,
+    "max_sync_handles": 65536,
+    "max_vm_mappings": 65536,
+    "command_gem_create": 1,
+    "command_gem_mmap": 2,
+    "command_context": 3,
+    "command_bo_list": 4,
+    "command_cs": 5,
+    "command_info": 6,
+    "command_gem_metadata": 7,
+    "command_gem_wait_idle": 8,
+    "command_gem_va": 9,
+    "command_wait_cs": 10,
+    "command_gem_op": 11,
+    "command_gem_userptr": 12,
+    "command_wait_fences": 13,
+    "command_vm": 14,
+    "command_fence_to_handle": 15,
+    "command_sched": 16,
+    "command_userq": 17,
+    "command_userq_signal": 18,
+    "command_userq_wait": 19,
+    "command_gem_list_handles": 20
+  },
+  "records": [
+    { "id": 101, "name": "gem_create_request", "fields": [
+      { "name": "bo_size", "type": "u64" },
+      { "name": "alignment", "type": "u64" },
+      { "name": "domains", "type": "u64" },
+      { "name": "domain_flags", "type": "u64" }
+    ] },
+    { "id": 102, "name": "gem_handle_result", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 103, "name": "gem_mmap_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "mapping_rights", "type": "u32" }
+    ] },
+    { "id": 104, "name": "gem_mmap_result", "fields": [
+      { "name": "mapping_id", "type": "u64" },
+      { "name": "length", "type": "u64" },
+      { "name": "cache_policy", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 105, "name": "context_request", "fields": [
+      { "name": "operation", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "context_id", "type": "u32" },
+      { "name": "priority", "type": "i32" }
+    ] },
+    { "id": 106, "name": "context_result", "fields": [
+      { "name": "result_kind", "type": "u32" },
+      { "name": "context_id", "type": "u32" },
+      { "name": "flags", "type": "u64" },
+      { "name": "hangs", "type": "u32" },
+      { "name": "reset_status", "type": "u32" },
+      { "name": "stable_pstate", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 107, "name": "bo_list_request", "fields": [
+      { "name": "operation", "type": "u32" },
+      { "name": "list_handle", "type": "u32" },
+      { "name": "entry_count", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 108, "name": "bo_list_entry", "fields": [
+      { "name": "bo_handle", "type": "u32" },
+      { "name": "priority", "type": "u32" }
+    ] },
+    { "id": 109, "name": "bo_list_result", "fields": [
+      { "name": "list_handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 110, "name": "cs_request", "fields": [
+      { "name": "context_id", "type": "u32" },
+      { "name": "bo_list_handle", "type": "u32" },
+      { "name": "chunk_count", "type": "u32" },
+      { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 111, "name": "cs_chunk_ib", "uapi_chunk_id": 1, "fields": [
+      { "name": "flags", "type": "u32" },
+      { "name": "ip_type", "type": "u32" },
+      { "name": "ip_instance", "type": "u32" },
+      { "name": "ring", "type": "u32" },
+      { "name": "va_start", "type": "u64" },
+      { "name": "ib_bytes", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 112, "name": "cs_chunk_user_fence", "uapi_chunk_id": 2, "fields": [
+      { "name": "bo_handle", "type": "u32" },
+      { "name": "offset", "type": "u32" }
+    ] },
+    { "id": 113, "name": "cs_chunk_dependency", "uapi_chunk_id": 3, "fields": [
+      { "name": "ip_type", "type": "u32" },
+      { "name": "ip_instance", "type": "u32" },
+      { "name": "ring", "type": "u32" },
+      { "name": "context_id", "type": "u32" },
+      { "name": "sequence", "type": "u64" }
+    ] },
+    { "id": 114, "name": "cs_chunk_syncobj_in", "uapi_chunk_id": 4, "fields": [
+      { "name": "handle", "type": "u32" }
+    ] },
+    { "id": 115, "name": "cs_chunk_syncobj_out", "uapi_chunk_id": 5, "fields": [
+      { "name": "handle", "type": "u32" }
+    ] },
+    { "id": 116, "name": "cs_chunk_bo_handle", "uapi_chunk_id": 6, "fields": [
+      { "name": "bo_handle", "type": "u32" },
+      { "name": "priority", "type": "u32" }
+    ] },
+    { "id": 117, "name": "cs_chunk_scheduled_dependency", "uapi_chunk_id": 7, "fields": [
+      { "name": "ip_type", "type": "u32" },
+      { "name": "ip_instance", "type": "u32" },
+      { "name": "ring", "type": "u32" },
+      { "name": "context_id", "type": "u32" },
+      { "name": "sequence", "type": "u64" }
+    ] },
+    { "id": 118, "name": "cs_chunk_timeline_wait", "uapi_chunk_id": 8, "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "point", "type": "u64" }
+    ] },
+    { "id": 119, "name": "cs_chunk_timeline_signal", "uapi_chunk_id": 9, "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "point", "type": "u64" }
+    ] },
+    { "id": 120, "name": "cs_chunk_gfx_shadow", "uapi_chunk_id": 10, "fields": [
+      { "name": "shadow_va", "type": "u64" },
+      { "name": "csa_va", "type": "u64" },
+      { "name": "gds_va", "type": "u64" },
+      { "name": "flags", "type": "u64" }
+    ] },
+    { "id": 121, "name": "cs_result", "fields": [
+      { "name": "submission_handle", "type": "u64" }
+    ] },
+    { "id": 122, "name": "info_request", "fields": [
+      { "name": "query", "type": "u32" },
+      { "name": "response_record_id", "type": "u32" },
+      { "name": "response_capacity", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "selector", "type": "u32[4]" }
+    ] },
+    { "id": 123, "name": "info_result", "fields": [
+      { "name": "response_record_id", "type": "u32" },
+      { "name": "response_count", "type": "u32" },
+      { "name": "response_bytes", "type": "u32" },
+      { "name": "required_count", "type": "u32" }
+    ] },
+    { "id": 124, "name": "scalar_u32", "fields": [
+      { "name": "value", "type": "u32" }
+    ] },
+    { "id": 125, "name": "scalar_u64", "fields": [
+      { "name": "value", "type": "u64" }
+    ] },
+    { "id": 126, "name": "byte", "fields": [
+      { "name": "value", "type": "u8" }
+    ] },
+    { "id": 127, "name": "info_gds", "fields": [
+      { "name": "gds_gfx_partition_size", "type": "u32" },
+      { "name": "compute_partition_size", "type": "u32" },
+      { "name": "gds_total_size", "type": "u32" },
+      { "name": "gws_per_gfx_partition", "type": "u32" },
+      { "name": "gws_per_compute_partition", "type": "u32" },
+      { "name": "oa_per_gfx_partition", "type": "u32" },
+      { "name": "oa_per_compute_partition", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 128, "name": "info_vram_gtt", "fields": [
+      { "name": "vram_size", "type": "u64" },
+      { "name": "vram_cpu_accessible_size", "type": "u64" },
+      { "name": "gtt_size", "type": "u64" }
+    ] },
+    { "id": 129, "name": "info_memory", "fields": [
+      { "name": "vram", "type": "u64[4]" },
+      { "name": "cpu_accessible_vram", "type": "u64[4]" },
+      { "name": "gtt", "type": "u64[4]" }
+    ] },
+    { "id": 130, "name": "info_firmware", "fields": [
+      { "name": "version", "type": "u32" },
+      { "name": "feature", "type": "u32" }
+    ] },
+    { "id": 131, "name": "info_vbios", "fields": [
+      { "name": "name", "type": "u8[64]" },
+      { "name": "part_number", "type": "u8[64]" },
+      { "name": "version", "type": "u32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "version_string", "type": "u8[32]" },
+      { "name": "date", "type": "u8[32]" }
+    ] },
+    { "id": 132, "name": "info_hw_ip", "fields": [
+      { "name": "version_major", "type": "u32" },
+      { "name": "version_minor", "type": "u32" },
+      { "name": "capabilities", "type": "u64" },
+      { "name": "ib_start_alignment", "type": "u32" },
+      { "name": "ib_size_alignment", "type": "u32" },
+      { "name": "available_rings", "type": "u32" },
+      { "name": "ip_discovery_version", "type": "u32" },
+      { "name": "userq_num_slots", "type": "u32" }
+    ] },
+    { "id": 133, "name": "info_device", "fields": [
+      { "name": "device_id", "type": "u32" },
+      { "name": "chip_rev", "type": "u32" },
+      { "name": "external_rev", "type": "u32" },
+      { "name": "pci_rev", "type": "u32" },
+      { "name": "family", "type": "u32" },
+      { "name": "num_shader_engines", "type": "u32" },
+      { "name": "num_shader_arrays_per_engine", "type": "u32" },
+      { "name": "gpu_counter_frequency", "type": "u32" },
+      { "name": "max_engine_clock", "type": "u64" },
+      { "name": "max_memory_clock", "type": "u64" },
+      { "name": "cu_active_number", "type": "u32" },
+      { "name": "cu_always_on_mask", "type": "u32" },
+      { "name": "cu_bitmap", "type": "u32[16]" },
+      { "name": "enabled_rb_pipes_mask", "type": "u32" },
+      { "name": "num_rb_pipes", "type": "u32" },
+      { "name": "num_hw_gfx_contexts", "type": "u32" },
+      { "name": "pcie_generation", "type": "u32" },
+      { "name": "ids_flags", "type": "u64" },
+      { "name": "virtual_address_offset", "type": "u64" },
+      { "name": "virtual_address_max", "type": "u64" },
+      { "name": "virtual_address_alignment", "type": "u32" },
+      { "name": "pte_fragment_size", "type": "u32" },
+      { "name": "gart_page_size", "type": "u32" },
+      { "name": "ce_ram_size", "type": "u32" },
+      { "name": "vram_type", "type": "u32" },
+      { "name": "vram_bit_width", "type": "u32" },
+      { "name": "vce_harvest_config", "type": "u32" },
+      { "name": "gc_double_offchip_lds_buf", "type": "u32" },
+      { "name": "prim_buf_gpu_addr", "type": "u64" },
+      { "name": "pos_buf_gpu_addr", "type": "u64" },
+      { "name": "control_sideband_gpu_addr", "type": "u64" },
+      { "name": "parameter_cache_gpu_addr", "type": "u64" },
+      { "name": "prim_buf_size", "type": "u32" },
+      { "name": "pos_buf_size", "type": "u32" },
+      { "name": "control_sideband_size", "type": "u32" },
+      { "name": "parameter_cache_size", "type": "u32" },
+      { "name": "wavefront_size", "type": "u32" },
+      { "name": "num_shader_visible_vgprs", "type": "u32" },
+      { "name": "num_cu_per_shader_array", "type": "u32" },
+      { "name": "num_tcc_blocks", "type": "u32" },
+      { "name": "gs_vgt_table_depth", "type": "u32" },
+      { "name": "gs_prim_buffer_depth", "type": "u32" },
+      { "name": "max_gs_waves_per_vgt", "type": "u32" },
+      { "name": "pcie_num_lanes", "type": "u32" },
+      { "name": "cu_always_on_bitmap", "type": "u32[16]" },
+      { "name": "high_va_offset", "type": "u64" },
+      { "name": "high_va_max", "type": "u64" },
+      { "name": "pa_sc_tile_steering_override", "type": "u32" },
+      { "name": "tcc_disabled_mask", "type": "u64" },
+      { "name": "min_engine_clock", "type": "u64" },
+      { "name": "min_memory_clock", "type": "u64" },
+      { "name": "tcp_cache_size", "type": "u32" },
+      { "name": "num_sqc_per_wgp", "type": "u32" },
+      { "name": "sqc_data_cache_size", "type": "u32" },
+      { "name": "sqc_instruction_cache_size", "type": "u32" },
+      { "name": "gl1_cache_size", "type": "u32" },
+      { "name": "gl2_cache_size", "type": "u32" },
+      { "name": "mall_size", "type": "u64" },
+      { "name": "enabled_rb_pipes_mask_high", "type": "u32" },
+      { "name": "shadow_size", "type": "u32" },
+      { "name": "shadow_alignment", "type": "u32" },
+      { "name": "csa_size", "type": "u32" },
+      { "name": "csa_alignment", "type": "u32" },
+      { "name": "userq_ip_mask", "type": "u32" }
+    ] },
+    { "id": 134, "name": "info_num_handles", "fields": [
+      { "name": "maximum", "type": "u32" },
+      { "name": "used", "type": "u32" }
+    ] },
+    { "id": 135, "name": "info_vce_clock_entry", "fields": [
+      { "name": "system_clock", "type": "u32" },
+      { "name": "memory_clock", "type": "u32" },
+      { "name": "vce_clock", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 136, "name": "info_video_caps", "fields": [
+      { "name": "codec_info", "type": "u32[48]" }
+    ] },
+    { "id": 137, "name": "info_gpuvm_fault", "fields": [
+      { "name": "address", "type": "u64" },
+      { "name": "status", "type": "u32" },
+      { "name": "vmhub", "type": "u32" }
+    ] },
+    { "id": 138, "name": "info_userq_metadata", "fields": [
+      { "name": "shadow_size", "type": "u32" },
+      { "name": "shadow_alignment", "type": "u32" },
+      { "name": "csa_size", "type": "u32" },
+      { "name": "csa_alignment", "type": "u32" }
+    ] },
+    { "id": 139, "name": "gem_metadata_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "operation", "type": "u32" },
+      { "name": "flags", "type": "u64" },
+      { "name": "tiling_info", "type": "u64" },
+      { "name": "data_size", "type": "u32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "data", "type": "u8[256]" }
+    ] },
+    { "id": 140, "name": "gem_metadata_result", "fields": [
+      { "name": "flags", "type": "u64" },
+      { "name": "tiling_info", "type": "u64" },
+      { "name": "data_size", "type": "u32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "data", "type": "u8[256]" }
+    ] },
+    { "id": 141, "name": "gem_wait_idle_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 142, "name": "gem_wait_idle_result", "fields": [
+      { "name": "busy", "type": "u32" },
+      { "name": "domain", "type": "u32" }
+    ] },
+    { "id": 143, "name": "gem_va_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "operation", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "input_syncobj_count", "type": "u32" },
+      { "name": "va_address", "type": "u64" },
+      { "name": "offset_in_bo", "type": "u64" },
+      { "name": "map_size", "type": "u64" },
+      { "name": "timeline_point", "type": "u64" },
+      { "name": "timeline_syncobj_out", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 144, "name": "wait_cs_request", "fields": [
+      { "name": "submission_handle", "type": "u64" },
+      { "name": "ip_type", "type": "u32" },
+      { "name": "ip_instance", "type": "u32" },
+      { "name": "ring", "type": "u32" },
+      { "name": "context_id", "type": "u32" }
+    ] },
+    { "id": 145, "name": "wait_status_result", "fields": [
+      { "name": "busy", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 146, "name": "gem_op_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "operation", "type": "u32" },
+      { "name": "value", "type": "u64" },
+      { "name": "mapping_capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 147, "name": "gem_create_info", "fields": [
+      { "name": "bo_size", "type": "u64" },
+      { "name": "alignment", "type": "u64" },
+      { "name": "domains", "type": "u64" },
+      { "name": "domain_flags", "type": "u64" }
+    ] },
+    { "id": 148, "name": "gem_vm_entry", "fields": [
+      { "name": "address", "type": "u64" },
+      { "name": "size", "type": "u64" },
+      { "name": "offset", "type": "u64" },
+      { "name": "flags", "type": "u64" }
+    ] },
+    { "id": 149, "name": "gem_op_result", "fields": [
+      { "name": "result_record_id", "type": "u32" },
+      { "name": "result_count", "type": "u32" },
+      { "name": "required_count", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 150, "name": "gem_userptr_request", "fields": [
+      { "name": "attachment_offset", "type": "u64" },
+      { "name": "size", "type": "u64" },
+      { "name": "flags", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 151, "name": "fence", "fields": [
+      { "name": "context_id", "type": "u32" },
+      { "name": "ip_type", "type": "u32" },
+      { "name": "ip_instance", "type": "u32" },
+      { "name": "ring", "type": "u32" },
+      { "name": "sequence", "type": "u64" }
+    ] },
+    { "id": 152, "name": "wait_fences_request", "fields": [
+      { "name": "fence_count", "type": "u32" },
+      { "name": "wait_all", "type": "u32" }
+    ] },
+    { "id": 153, "name": "wait_fences_result", "fields": [
+      { "name": "signaled", "type": "u32" },
+      { "name": "first_signaled", "type": "u32" }
+    ] },
+    { "id": 154, "name": "vm_request", "fields": [
+      { "name": "operation", "type": "u32" },
+      { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 155, "name": "vm_result", "fields": [
+      { "name": "flags", "type": "u64" }
+    ] },
+    { "id": 156, "name": "fence_to_handle_request", "fields": [
+      { "name": "context_id", "type": "u32" },
+      { "name": "ip_type", "type": "u32" },
+      { "name": "ip_instance", "type": "u32" },
+      { "name": "ring", "type": "u32" },
+      { "name": "sequence", "type": "u64" },
+      { "name": "output_kind", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 157, "name": "fence_to_handle_result", "fields": [
+      { "name": "output_kind", "type": "u32" },
+      { "name": "syncobj_handle", "type": "u32" }
+    ] },
+    { "id": 158, "name": "sched_request", "fields": [
+      { "name": "operation", "type": "u32" },
+      { "name": "priority", "type": "i32" },
+      { "name": "context_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 159, "name": "userq_request", "fields": [
+      { "name": "operation", "type": "u32" },
+      { "name": "queue_id", "type": "u32" },
+      { "name": "ip_type", "type": "u32" },
+      { "name": "doorbell_handle", "type": "u32" },
+      { "name": "doorbell_offset", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "queue_va", "type": "u64" },
+      { "name": "queue_size", "type": "u64" },
+      { "name": "read_pointer_va", "type": "u64" },
+      { "name": "write_pointer_va", "type": "u64" },
+      { "name": "mqd_record_id", "type": "u32" },
+      { "name": "mqd_size", "type": "u32" }
+    ] },
+    { "id": 160, "name": "userq_result", "fields": [
+      { "name": "queue_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 161, "name": "userq_mqd_gfx11", "fields": [
+      { "name": "shadow_va", "type": "u64" },
+      { "name": "csa_va", "type": "u64" }
+    ] },
+    { "id": 162, "name": "userq_mqd_sdma_gfx11", "fields": [
+      { "name": "csa_va", "type": "u64" }
+    ] },
+    { "id": 163, "name": "userq_mqd_compute_gfx11", "fields": [
+      { "name": "eop_va", "type": "u64" }
+    ] },
+    { "id": 164, "name": "userq_signal_request", "fields": [
+      { "name": "queue_id", "type": "u32" },
+      { "name": "syncobj_count", "type": "u32" },
+      { "name": "read_bo_count", "type": "u32" },
+      { "name": "write_bo_count", "type": "u32" }
+    ] },
+    { "id": 165, "name": "handle_u32", "fields": [
+      { "name": "handle", "type": "u32" }
+    ] },
+    { "id": 166, "name": "timeline_syncobj", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "point", "type": "u64" }
+    ] },
+    { "id": 167, "name": "userq_wait_request", "fields": [
+      { "name": "wait_queue_id", "type": "u32" },
+      { "name": "syncobj_count", "type": "u32" },
+      { "name": "timeline_syncobj_count", "type": "u32" },
+      { "name": "read_bo_count", "type": "u32" },
+      { "name": "write_bo_count", "type": "u32" },
+      { "name": "output_capacity", "type": "u32" }
+    ] },
+    { "id": 168, "name": "userq_fence_info", "fields": [
+      { "name": "gpu_va", "type": "u64" },
+      { "name": "value", "type": "u64" }
+    ] },
+    { "id": 169, "name": "userq_wait_result", "fields": [
+      { "name": "fence_count", "type": "u32" },
+      { "name": "required_count", "type": "u32" }
+    ] },
+    { "id": 170, "name": "gem_list_handles_request", "fields": [
+      { "name": "entry_capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 171, "name": "gem_list_handles_entry", "fields": [
+      { "name": "gem_handle", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "size", "type": "u64" },
+      { "name": "preferred_domains", "type": "u64" },
+      { "name": "allocation_flags", "type": "u64" },
+      { "name": "alignment", "type": "u64" }
+    ] },
+    { "id": 172, "name": "gem_list_handles_result", "fields": [
+      { "name": "entry_count", "type": "u32" },
+      { "name": "required_count", "type": "u32" }
+    ] }
+  ],
+  "info_queries": [
+    { "id": 0, "name": "acceleration_working", "records": ["scalar_u32"], "cardinality": "one" },
+    { "id": 1, "name": "crtc_from_id", "records": ["scalar_u32"], "cardinality": "one" },
+    { "id": 2, "name": "hw_ip_info", "records": ["info_hw_ip"], "cardinality": "one" },
+    { "id": 3, "name": "hw_ip_count", "records": ["scalar_u32"], "cardinality": "one" },
+    { "id": 5, "name": "timestamp", "records": ["scalar_u64"], "cardinality": "one" },
+    { "id": 14, "name": "firmware_version", "records": ["info_firmware"], "cardinality": "one" },
+    { "id": 15, "name": "bytes_moved", "records": ["scalar_u64"], "cardinality": "one" },
+    { "id": 16, "name": "vram_usage", "records": ["scalar_u64"], "cardinality": "one" },
+    { "id": 17, "name": "gtt_usage", "records": ["scalar_u64"], "cardinality": "one" },
+    { "id": 19, "name": "gds_config", "records": ["info_gds"], "cardinality": "one" },
+    { "id": 20, "name": "vram_gtt", "records": ["info_vram_gtt"], "cardinality": "one" },
+    { "id": 21, "name": "read_mmr_register", "records": ["scalar_u32"], "cardinality": "vector" },
+    { "id": 22, "name": "device_info", "records": ["info_device"], "cardinality": "one" },
+    { "id": 23, "name": "visible_vram_usage", "records": ["scalar_u64"], "cardinality": "one" },
+    { "id": 24, "name": "eviction_count", "records": ["scalar_u64"], "cardinality": "one" },
+    { "id": 25, "name": "memory_info", "records": ["info_memory"], "cardinality": "one" },
+    { "id": 26, "name": "vce_clock_table", "records": ["info_vce_clock_entry"], "cardinality": "vector" },
+    { "id": 27, "name": "vbios", "records": ["scalar_u32", "byte", "info_vbios"], "cardinality": "variant" },
+    { "id": 28, "name": "video_handle_count", "records": ["info_num_handles"], "cardinality": "one" },
+    { "id": 29, "name": "sensor", "records": ["scalar_u32"], "cardinality": "one" },
+    { "id": 30, "name": "vram_cpu_page_faults", "records": ["scalar_u64"], "cardinality": "one" },
+    { "id": 31, "name": "vram_lost_counter", "records": ["scalar_u32"], "cardinality": "one" },
+    { "id": 32, "name": "ras_enabled_features", "records": ["scalar_u64"], "cardinality": "one" },
+    { "id": 33, "name": "video_caps", "records": ["info_video_caps"], "cardinality": "one" },
+    { "id": 34, "name": "maximum_ibs", "records": ["scalar_u32"], "cardinality": "one" },
+    { "id": 35, "name": "gpuvm_fault", "records": ["info_gpuvm_fault"], "cardinality": "one" },
+    { "id": 36, "name": "userq_firmware_areas", "records": ["info_userq_metadata"], "cardinality": "one" }
+  ],
+  "command_set": {
+    "set_id": 4,
+    "queue_class": "execution",
+    "argument_model": "kobox2.gpu.argument-vector",
+    "inline_argument_id": 1,
+    "commands": [
+      { "id": 1, "name": "gem_create", "uapi_command": "DRM_IOCTL_AMDGPU_GEM_CREATE", "uapi_number": 0, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_create_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "gem_handle_result", "spans": [], "attachments": [] } },
+      { "id": 2, "name": "gem_mmap", "uapi_command": "DRM_IOCTL_AMDGPU_GEM_MMAP", "uapi_number": 1, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_mmap_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "gem_mmap_result", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "cpu_mapping", "class": "memory", "ownership": "share", "optional": false }
+        ] } },
+      { "id": 3, "name": "context", "uapi_command": "DRM_IOCTL_AMDGPU_CTX", "uapi_number": 2, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "context_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "context_result", "spans": [], "attachments": [] } },
+      { "id": 4, "name": "bo_list", "uapi_command": "DRM_IOCTL_AMDGPU_BO_LIST", "uapi_number": 3, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "bo_list_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "entries", "direction": "input", "records": ["bo_list_entry"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "bo_list_result", "spans": [], "attachments": [] } },
+      { "id": 5, "name": "cs", "uapi_command": "DRM_IOCTL_AMDGPU_CS", "uapi_number": 4, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "cs_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "chunks", "direction": "input", "records": ["cs_chunk_ib", "cs_chunk_user_fence", "cs_chunk_dependency", "cs_chunk_syncobj_in", "cs_chunk_syncobj_out", "cs_chunk_bo_handle", "cs_chunk_scheduled_dependency", "cs_chunk_timeline_wait", "cs_chunk_timeline_signal", "cs_chunk_gfx_shadow"], "minimum": 1, "maximum": 64, "repeated": true, "element_minimum": 1, "element_maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "cs_result", "spans": [], "attachments": [] } },
+      { "id": 6, "name": "info", "uapi_command": "DRM_IOCTL_AMDGPU_INFO", "uapi_number": 5, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "info_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "response", "direction": "output", "records": ["scalar_u32", "scalar_u64", "byte", "info_gds", "info_vram_gtt", "info_memory", "info_firmware", "info_vbios", "info_hw_ip", "info_device", "info_num_handles", "info_vce_clock_entry", "info_video_caps", "info_gpuvm_fault", "info_userq_metadata"], "minimum": 1, "maximum": 1048576 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "info_result", "spans": [], "attachments": [] } },
+      { "id": 7, "name": "gem_metadata", "uapi_command": "DRM_IOCTL_AMDGPU_GEM_METADATA", "uapi_number": 6, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_metadata_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "gem_metadata_result", "spans": [], "attachments": [] } },
+      { "id": 8, "name": "gem_wait_idle", "uapi_command": "DRM_IOCTL_AMDGPU_GEM_WAIT_IDLE", "uapi_number": 7, "cancellation": "wait", "deadline": "required",
+        "request": { "inline_record": "gem_wait_idle_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "gem_wait_idle_result", "spans": [], "attachments": [] } },
+      { "id": 9, "name": "gem_va", "uapi_command": "DRM_IOCTL_AMDGPU_GEM_VA", "uapi_number": 8, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_va_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "input_syncobjs", "direction": "input", "records": ["handle_u32"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 10, "name": "wait_cs", "uapi_command": "DRM_IOCTL_AMDGPU_WAIT_CS", "uapi_number": 9, "cancellation": "wait", "deadline": "required",
+        "request": { "inline_record": "wait_cs_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "wait_status_result", "spans": [], "attachments": [] } },
+      { "id": 11, "name": "gem_op", "uapi_command": "DRM_IOCTL_AMDGPU_GEM_OP", "uapi_number": 16, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_op_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "result", "direction": "output", "records": ["gem_create_info", "gem_vm_entry"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "gem_op_result", "spans": [], "attachments": [] } },
+      { "id": 12, "name": "gem_userptr", "uapi_command": "DRM_IOCTL_AMDGPU_GEM_USERPTR", "uapi_number": 17, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_userptr_request", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "backing_memory", "class": "memory", "ownership": "share", "optional": false }
+        ] },
+        "completion": { "inline_record": "gem_handle_result", "spans": [], "attachments": [] } },
+      { "id": 13, "name": "wait_fences", "uapi_command": "DRM_IOCTL_AMDGPU_WAIT_FENCES", "uapi_number": 18, "cancellation": "wait", "deadline": "required",
+        "request": { "inline_record": "wait_fences_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "fences", "direction": "input", "records": ["fence"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "wait_fences_result", "spans": [], "attachments": [] } },
+      { "id": 14, "name": "vm", "uapi_command": "DRM_IOCTL_AMDGPU_VM", "uapi_number": 19, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "vm_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "vm_result", "spans": [], "attachments": [] } },
+      { "id": 15, "name": "fence_to_handle", "uapi_command": "DRM_IOCTL_AMDGPU_FENCE_TO_HANDLE", "uapi_number": 20, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "fence_to_handle_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "fence_to_handle_result", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "native_sync", "classes": ["syncobj", "sync_file"], "ownership": "move", "optional": true }
+        ] } },
+      { "id": 16, "name": "sched", "uapi_command": "DRM_IOCTL_AMDGPU_SCHED", "uapi_number": 21, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "sched_request", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "target_session", "class": "session", "ownership": "borrow", "optional": false }
+        ] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 17, "name": "userq", "uapi_command": "DRM_IOCTL_AMDGPU_USERQ", "uapi_number": 22, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "userq_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "mqd", "direction": "input", "records": ["userq_mqd_gfx11", "userq_mqd_sdma_gfx11", "userq_mqd_compute_gfx11"], "minimum": 0, "maximum": 1 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "userq_result", "spans": [], "attachments": [] } },
+      { "id": 18, "name": "userq_signal", "uapi_command": "DRM_IOCTL_AMDGPU_USERQ_SIGNAL", "uapi_number": 23, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "userq_signal_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "syncobjs", "direction": "input", "records": ["handle_u32"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 3, "role": 2, "name": "read_bos", "direction": "input", "records": ["handle_u32"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 4, "role": 3, "name": "write_bos", "direction": "input", "records": ["handle_u32"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 19, "name": "userq_wait", "uapi_command": "DRM_IOCTL_AMDGPU_USERQ_WAIT", "uapi_number": 24, "cancellation": "wait", "deadline": "required",
+        "request": { "inline_record": "userq_wait_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "syncobjs", "direction": "input", "records": ["handle_u32"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 3, "role": 2, "name": "timeline_syncobjs", "direction": "input", "records": ["timeline_syncobj"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 4, "role": 3, "name": "read_bos", "direction": "input", "records": ["handle_u32"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 5, "role": 4, "name": "write_bos", "direction": "input", "records": ["handle_u32"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 6, "role": 5, "name": "fence_info", "direction": "output", "records": ["userq_fence_info"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "userq_wait_result", "spans": [], "attachments": [] } },
+      { "id": 20, "name": "gem_list_handles", "uapi_command": "DRM_IOCTL_AMDGPU_GEM_LIST_HANDLES", "uapi_number": 25, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_list_handles_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "entries", "direction": "output", "records": ["gem_list_handles_entry"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "gem_list_handles_result", "spans": [], "attachments": [] } }
+    ]
+  },
+  "structures": {}
+}

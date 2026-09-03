@@ -1,0 +1,460 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.gpu.drm-mode",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "base_schema": "kobox2.gpu",
+  "uapi_release": "Linux 6.18.48",
+  "uapi_headers": ["drm/drm.h", "drm/drm_mode.h"],
+  "constants": {
+    "set_id": 2,
+    "command_count": 44,
+    "record_count": 66,
+    "max_objects": 65536,
+    "max_modes": 4096,
+    "max_properties": 65536,
+    "max_blob_bytes": 16777216,
+    "max_dirty_rectangles": 256,
+    "atomic_value_scalar": 1,
+    "atomic_value_object": 2,
+    "atomic_value_blob": 3,
+    "atomic_value_input_syncobj": 4,
+    "atomic_value_output_syncobj": 5,
+    "connector_flag_force_probe": 1,
+    "cursor_flag_buffer": 1,
+    "cursor_flag_move": 2,
+    "dirty_flag_copy": 1,
+    "dirty_flag_fill": 2,
+    "page_flip_flag_event": 1,
+    "page_flip_flag_async": 2,
+    "page_flip_flag_target_absolute": 4,
+    "page_flip_flag_target_relative": 8,
+    "atomic_flag_test_only": 256,
+    "atomic_flag_nonblock": 512,
+    "atomic_flag_allow_modeset": 1024,
+    "command_get_magic": 1,
+    "command_auth_magic": 2,
+    "command_set_master": 3,
+    "command_drop_master": 4,
+    "command_wait_vblank": 5,
+    "command_crtc_get_sequence": 6,
+    "command_crtc_queue_sequence": 7,
+    "command_get_resources": 8,
+    "command_get_crtc": 9,
+    "command_set_crtc": 10,
+    "command_cursor": 11,
+    "command_get_gamma": 12,
+    "command_set_gamma": 13,
+    "command_get_encoder": 14,
+    "command_get_connector": 15,
+    "command_attach_mode": 16,
+    "command_detach_mode": 17,
+    "command_get_property": 18,
+    "command_set_property": 19,
+    "command_get_property_blob": 20,
+    "command_get_fb": 21,
+    "command_add_fb": 22,
+    "command_remove_fb": 23,
+    "command_page_flip": 24,
+    "command_dirty_fb": 25,
+    "command_create_dumb": 26,
+    "command_map_dumb": 27,
+    "command_destroy_dumb": 28,
+    "command_get_plane_resources": 29,
+    "command_get_plane": 30,
+    "command_set_plane": 31,
+    "command_add_fb2": 32,
+    "command_object_get_properties": 33,
+    "command_object_set_property": 34,
+    "command_cursor2": 35,
+    "command_atomic": 36,
+    "command_create_property_blob": 37,
+    "command_destroy_property_blob": 38,
+    "command_create_lease": 39,
+    "command_list_lessees": 40,
+    "command_get_lease": 41,
+    "command_revoke_lease": 42,
+    "command_get_fb2": 43,
+    "command_close_fb": 44
+  },
+  "records": [
+    { "id": 101, "name": "byte", "fields": [{ "name": "value", "type": "u8" }] },
+    { "id": 102, "name": "object_id", "fields": [{ "name": "id", "type": "u32" }] },
+    { "id": 103, "name": "scalar_u64", "fields": [{ "name": "value", "type": "u64" }] },
+    { "id": 104, "name": "magic", "fields": [{ "name": "value", "type": "u32" }] },
+    { "id": 105, "name": "topology_request", "fields": [{ "name": "topology_epoch", "type": "u64" }] },
+    { "id": 106, "name": "wait_vblank_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "type", "type": "u32" },
+      { "name": "sequence", "type": "u32" }, { "name": "event_token", "type": "u64" }
+    ] },
+    { "id": 107, "name": "wait_vblank_result", "fields": [
+      { "name": "type", "type": "u32" }, { "name": "sequence", "type": "u32" },
+      { "name": "timestamp_ns", "type": "i64" }
+    ] },
+    { "id": 108, "name": "crtc_sequence_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "crtc_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 109, "name": "crtc_sequence_result", "fields": [
+      { "name": "active", "type": "u32" }, { "name": "reserved", "type": "u32" },
+      { "name": "sequence", "type": "u64" }, { "name": "timestamp_ns", "type": "i64" }
+    ] },
+    { "id": 110, "name": "crtc_queue_sequence_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "crtc_id", "type": "u32" },
+      { "name": "flags", "type": "u32" }, { "name": "sequence", "type": "u64" },
+      { "name": "event_token", "type": "u64" }
+    ] },
+    { "id": 111, "name": "sequence_result", "fields": [{ "name": "sequence", "type": "u64" }] },
+    { "id": 112, "name": "resources_request", "fields": [
+      { "name": "fb_capacity", "type": "u32" },
+      { "name": "crtc_capacity", "type": "u32" }, { "name": "connector_capacity", "type": "u32" },
+      { "name": "encoder_capacity", "type": "u32" }
+    ] },
+    { "id": 113, "name": "resources_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "fb_count", "type": "u32" },
+      { "name": "crtc_count", "type": "u32" }, { "name": "connector_count", "type": "u32" },
+      { "name": "encoder_count", "type": "u32" }, { "name": "min_width", "type": "u32" },
+      { "name": "max_width", "type": "u32" }, { "name": "min_height", "type": "u32" },
+      { "name": "max_height", "type": "u32" }
+    ] },
+    { "id": 114, "name": "mode_info", "fields": [
+      { "name": "clock_khz", "type": "u32" }, { "name": "hdisplay", "type": "u16" },
+      { "name": "hsync_start", "type": "u16" }, { "name": "hsync_end", "type": "u16" },
+      { "name": "htotal", "type": "u16" }, { "name": "hskew", "type": "u16" },
+      { "name": "vdisplay", "type": "u16" }, { "name": "vsync_start", "type": "u16" },
+      { "name": "vsync_end", "type": "u16" }, { "name": "vtotal", "type": "u16" },
+      { "name": "vscan", "type": "u16" }, { "name": "vrefresh", "type": "u32" },
+      { "name": "flags", "type": "u32" }, { "name": "type", "type": "u32" },
+      { "name": "name", "type": "u8[32]" }
+    ] },
+    { "id": 115, "name": "crtc_get_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "crtc_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 116, "name": "crtc_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "crtc_id", "type": "u32" },
+      { "name": "fb_id", "type": "u32" }, { "name": "x", "type": "u32" },
+      { "name": "y", "type": "u32" }, { "name": "gamma_size", "type": "u32" },
+      { "name": "mode_valid", "type": "u32" }, { "name": "reserved", "type": "u32[2]" }
+    ] },
+    { "id": 117, "name": "crtc_set_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "crtc_id", "type": "u32" },
+      { "name": "fb_id", "type": "u32" }, { "name": "x", "type": "u32" },
+      { "name": "y", "type": "u32" }, { "name": "mode_valid", "type": "u32" },
+      { "name": "connector_count", "type": "u32" }
+    ] },
+    { "id": 118, "name": "cursor_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "flags", "type": "u32" },
+      { "name": "crtc_id", "type": "u32" }, { "name": "x", "type": "i32" },
+      { "name": "y", "type": "i32" }, { "name": "width", "type": "u32" },
+      { "name": "height", "type": "u32" }, { "name": "handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 119, "name": "gamma_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "crtc_id", "type": "u32" },
+      { "name": "entry_count", "type": "u32" }
+    ] },
+    { "id": 120, "name": "lut_value", "fields": [{ "name": "value", "type": "u16" }] },
+    { "id": 121, "name": "count_result", "fields": [
+      { "name": "count", "type": "u32" }, { "name": "required_count", "type": "u32" }
+    ] },
+    { "id": 122, "name": "encoder_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "encoder_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 123, "name": "encoder_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "encoder_id", "type": "u32" },
+      { "name": "encoder_type", "type": "u32" }, { "name": "crtc_id", "type": "u32" },
+      { "name": "possible_crtcs", "type": "u32" }, { "name": "possible_clones", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 124, "name": "connector_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "connector_id", "type": "u32" },
+      { "name": "mode_capacity", "type": "u32" }, { "name": "property_capacity", "type": "u32" },
+      { "name": "encoder_capacity", "type": "u32" }, { "name": "flags", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 125, "name": "property_value", "fields": [
+      { "name": "property_id", "type": "u32" }, { "name": "reserved", "type": "u32" },
+      { "name": "value", "type": "u64" }
+    ] },
+    { "id": 126, "name": "connector_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "encoder_id", "type": "u32" },
+      { "name": "connector_id", "type": "u32" }, { "name": "connector_type", "type": "u32" },
+      { "name": "connector_type_id", "type": "u32" }, { "name": "connection", "type": "u32" },
+      { "name": "width_mm", "type": "u32" }, { "name": "height_mm", "type": "u32" },
+      { "name": "subpixel", "type": "u32" }, { "name": "mode_count", "type": "u32" },
+      { "name": "property_count", "type": "u32" }, { "name": "encoder_count", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 127, "name": "mode_command_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "connector_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 128, "name": "property_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "property_id", "type": "u32" },
+      { "name": "value_capacity", "type": "u32" }, { "name": "enum_capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 129, "name": "property_enum", "fields": [
+      { "name": "value", "type": "u64" }, { "name": "name", "type": "u8[32]" }
+    ] },
+    { "id": 130, "name": "property_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "flags", "type": "u32" },
+      { "name": "value_count", "type": "u32" }, { "name": "enum_count", "type": "u32" },
+      { "name": "reserved", "type": "u32" }, { "name": "name", "type": "u8[32]" }
+    ] },
+    { "id": 131, "name": "set_property_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "connector_id", "type": "u32" },
+      { "name": "property_id", "type": "u32" }, { "name": "value", "type": "u64" }
+    ] },
+    { "id": 132, "name": "blob_get_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "blob_id", "type": "u32" },
+      { "name": "capacity", "type": "u32" }
+    ] },
+    { "id": 133, "name": "length_result", "fields": [
+      { "name": "bytes", "type": "u32" }, { "name": "required_bytes", "type": "u32" }
+    ] },
+    { "id": 134, "name": "fb_get_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "fb_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 135, "name": "fb_legacy", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "fb_id", "type": "u32" },
+      { "name": "width", "type": "u32" }, { "name": "height", "type": "u32" },
+      { "name": "pitch", "type": "u32" }, { "name": "bits_per_pixel", "type": "u32" },
+      { "name": "depth", "type": "u32" }, { "name": "handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 136, "name": "fb_legacy_create", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "width", "type": "u32" },
+      { "name": "height", "type": "u32" }, { "name": "pitch", "type": "u32" },
+      { "name": "bits_per_pixel", "type": "u32" }, { "name": "depth", "type": "u32" },
+      { "name": "handle", "type": "u32" }, { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 137, "name": "object_id_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "object_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 138, "name": "object_id_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "object_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 139, "name": "page_flip_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "crtc_id", "type": "u32" },
+      { "name": "fb_id", "type": "u32" }, { "name": "flags", "type": "u32" },
+      { "name": "sequence", "type": "u32" }, { "name": "event_token", "type": "u64" }
+    ] },
+    { "id": 140, "name": "dirty_fb_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "fb_id", "type": "u32" },
+      { "name": "flags", "type": "u32" }, { "name": "color", "type": "u32" },
+      { "name": "rectangle_count", "type": "u32" }
+    ] },
+    { "id": 141, "name": "rectangle", "fields": [
+      { "name": "x1", "type": "i32" }, { "name": "y1", "type": "i32" },
+      { "name": "x2", "type": "i32" }, { "name": "y2", "type": "i32" }
+    ] },
+    { "id": 142, "name": "dumb_create_request", "fields": [
+      { "name": "height", "type": "u32" }, { "name": "width", "type": "u32" },
+      { "name": "bits_per_pixel", "type": "u32" }, { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 143, "name": "dumb_create_result", "fields": [
+      { "name": "handle", "type": "u32" }, { "name": "pitch", "type": "u32" },
+      { "name": "size", "type": "u64" }
+    ] },
+    { "id": 144, "name": "map_request", "fields": [
+      { "name": "handle", "type": "u32" }, { "name": "mapping_rights", "type": "u32" }
+    ] },
+    { "id": 145, "name": "mapping_result", "fields": [
+      { "name": "mapping_id", "type": "u64" }, { "name": "length", "type": "u64" },
+      { "name": "cache_policy", "type": "u32" }, { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 146, "name": "plane_resources_request", "fields": [
+      { "name": "plane_capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 147, "name": "plane_get_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "plane_id", "type": "u32" },
+      { "name": "format_capacity", "type": "u32" }
+    ] },
+    { "id": 148, "name": "plane_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "plane_id", "type": "u32" },
+      { "name": "crtc_id", "type": "u32" }, { "name": "fb_id", "type": "u32" },
+      { "name": "possible_crtcs", "type": "u32" }, { "name": "gamma_size", "type": "u32" },
+      { "name": "format_count", "type": "u32" }, { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 149, "name": "plane_set_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "plane_id", "type": "u32" },
+      { "name": "crtc_id", "type": "u32" }, { "name": "fb_id", "type": "u32" },
+      { "name": "flags", "type": "u32" }, { "name": "crtc_x", "type": "i32" },
+      { "name": "crtc_y", "type": "i32" }, { "name": "crtc_width", "type": "u32" },
+      { "name": "crtc_height", "type": "u32" }, { "name": "source_x", "type": "u32" },
+      { "name": "source_y", "type": "u32" }, { "name": "source_width", "type": "u32" },
+      { "name": "source_height", "type": "u32" }
+    ] },
+    { "id": 150, "name": "fb2", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "fb_id", "type": "u32" },
+      { "name": "width", "type": "u32" }, { "name": "height", "type": "u32" },
+      { "name": "pixel_format", "type": "u32" }, { "name": "flags", "type": "u32" },
+      { "name": "handles", "type": "u32[4]" }, { "name": "pitches", "type": "u32[4]" },
+      { "name": "offsets", "type": "u32[4]" }, { "name": "modifiers", "type": "u64[4]" }
+    ] },
+    { "id": 151, "name": "object_properties_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "object_id", "type": "u32" },
+      { "name": "object_type", "type": "u32" }, { "name": "property_capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 152, "name": "object_set_property_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "object_id", "type": "u32" },
+      { "name": "object_type", "type": "u32" }, { "name": "property_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }, { "name": "value", "type": "u64" }
+    ] },
+    { "id": 153, "name": "cursor2_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "flags", "type": "u32" },
+      { "name": "crtc_id", "type": "u32" }, { "name": "x", "type": "i32" },
+      { "name": "y", "type": "i32" }, { "name": "width", "type": "u32" },
+      { "name": "height", "type": "u32" }, { "name": "handle", "type": "u32" },
+      { "name": "hotspot_x", "type": "i32" }, { "name": "hotspot_y", "type": "i32" }
+    ] },
+    { "id": 154, "name": "atomic_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "event_token", "type": "u64" },
+      { "name": "flags", "type": "u32" }, { "name": "object_count", "type": "u32" },
+      { "name": "property_count", "type": "u32" }, { "name": "fence_capacity", "type": "u32" }
+    ] },
+    { "id": 155, "name": "atomic_object", "fields": [
+      { "name": "object_id", "type": "u32" }, { "name": "first_property", "type": "u32" },
+      { "name": "property_count", "type": "u32" }, { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 156, "name": "atomic_property", "fields": [
+      { "name": "property_id", "type": "u32" }, { "name": "value_kind", "type": "u32" },
+      { "name": "value", "type": "u64" }, { "name": "syncobj_handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" }, { "name": "syncobj_point", "type": "u64" }
+    ] },
+    { "id": 157, "name": "blob_create_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "bytes", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 158, "name": "lease_create_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "object_count", "type": "u32" },
+      { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 159, "name": "lease_create_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "lessee_id", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 160, "name": "capacity_request", "fields": [
+      { "name": "capacity", "type": "u32" }, { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 161, "name": "lessee_id", "fields": [{ "name": "id", "type": "u64" }] },
+    { "id": 162, "name": "lease_get_request", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "object_capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 163, "name": "lease_revoke_request", "fields": [
+      { "name": "lessee_id", "type": "u32" }, { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 164, "name": "topology_count_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "count", "type": "u32" },
+      { "name": "required_count", "type": "u32" }
+    ] },
+    { "id": 165, "name": "atomic_fence_result", "fields": [
+      { "name": "property_index", "type": "u32" }, { "name": "syncobj_handle", "type": "u32" },
+      { "name": "syncobj_point", "type": "u64" }
+    ] },
+    { "id": 166, "name": "atomic_result", "fields": [
+      { "name": "topology_epoch", "type": "u64" }, { "name": "fence_count", "type": "u32" },
+      { "name": "required_fence_count", "type": "u32" }
+    ] }
+  ],
+  "command_set": {
+    "set_id": 2,
+    "queue_class": "display",
+    "argument_model": "kobox2.gpu.argument-vector",
+    "inline_argument_id": 1,
+    "commands": [
+      { "id": 1, "name": "get_magic", "uapi_command": "DRM_IOCTL_GET_MAGIC", "uapi_number": 2, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": null, "spans": [], "attachments": [] }, "completion": { "inline_record": "magic", "spans": [], "attachments": [] } },
+      { "id": 2, "name": "auth_magic", "uapi_command": "DRM_IOCTL_AUTH_MAGIC", "uapi_number": 17, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "magic", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 3, "name": "set_master", "uapi_command": "DRM_IOCTL_SET_MASTER", "uapi_number": 30, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": null, "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 4, "name": "drop_master", "uapi_command": "DRM_IOCTL_DROP_MASTER", "uapi_number": 31, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": null, "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 5, "name": "wait_vblank", "uapi_command": "DRM_IOCTL_WAIT_VBLANK", "uapi_number": 58, "cancellation": "wait", "deadline": "required", "request": { "inline_record": "wait_vblank_request", "spans": [], "attachments": [] }, "completion": { "inline_record": "wait_vblank_result", "spans": [], "attachments": [] } },
+      { "id": 6, "name": "crtc_get_sequence", "uapi_command": "DRM_IOCTL_CRTC_GET_SEQUENCE", "uapi_number": 59, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "crtc_sequence_request", "spans": [], "attachments": [] }, "completion": { "inline_record": "crtc_sequence_result", "spans": [], "attachments": [] } },
+      { "id": 7, "name": "crtc_queue_sequence", "uapi_command": "DRM_IOCTL_CRTC_QUEUE_SEQUENCE", "uapi_number": 60, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "crtc_queue_sequence_request", "spans": [], "attachments": [] }, "completion": { "inline_record": "sequence_result", "spans": [], "attachments": [] } },
+      { "id": 8, "name": "get_resources", "uapi_command": "DRM_IOCTL_MODE_GETRESOURCES", "uapi_number": 160, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "resources_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "framebuffers", "direction": "output", "records": ["object_id"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 3, "role": 2, "name": "crtcs", "direction": "output", "records": ["object_id"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 4, "role": 3, "name": "connectors", "direction": "output", "records": ["object_id"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 5, "role": 4, "name": "encoders", "direction": "output", "records": ["object_id"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] }, "completion": { "inline_record": "resources_result", "spans": [], "attachments": [] } },
+      { "id": 9, "name": "get_crtc", "uapi_command": "DRM_IOCTL_MODE_GETCRTC", "uapi_number": 161, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "crtc_get_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "mode", "direction": "output", "records": ["mode_info"], "minimum": 1, "maximum": 1 }
+        ], "attachments": [] }, "completion": { "inline_record": "crtc_result", "spans": [], "attachments": [] } },
+      { "id": 10, "name": "set_crtc", "uapi_command": "DRM_IOCTL_MODE_SETCRTC", "uapi_number": 162, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "crtc_set_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "connectors", "direction": "input", "records": ["object_id"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 3, "role": 2, "name": "mode", "direction": "input", "records": ["mode_info"], "minimum": 0, "maximum": 1 }
+        ], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 11, "name": "cursor", "uapi_command": "DRM_IOCTL_MODE_CURSOR", "uapi_number": 163, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "cursor_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 12, "name": "get_gamma", "uapi_command": "DRM_IOCTL_MODE_GETGAMMA", "uapi_number": 164, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gamma_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "red", "direction": "output", "records": ["lut_value"], "minimum": 1, "maximum": 65536 },
+          { "argument_id": 3, "role": 2, "name": "green", "direction": "output", "records": ["lut_value"], "minimum": 1, "maximum": 65536 },
+          { "argument_id": 4, "role": 3, "name": "blue", "direction": "output", "records": ["lut_value"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] }, "completion": { "inline_record": "count_result", "spans": [], "attachments": [] } },
+      { "id": 13, "name": "set_gamma", "uapi_command": "DRM_IOCTL_MODE_SETGAMMA", "uapi_number": 165, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gamma_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "red", "direction": "input", "records": ["lut_value"], "minimum": 1, "maximum": 65536 },
+          { "argument_id": 3, "role": 2, "name": "green", "direction": "input", "records": ["lut_value"], "minimum": 1, "maximum": 65536 },
+          { "argument_id": 4, "role": 3, "name": "blue", "direction": "input", "records": ["lut_value"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 14, "name": "get_encoder", "uapi_command": "DRM_IOCTL_MODE_GETENCODER", "uapi_number": 166, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "encoder_request", "spans": [], "attachments": [] }, "completion": { "inline_record": "encoder_result", "spans": [], "attachments": [] } },
+      { "id": 15, "name": "get_connector", "uapi_command": "DRM_IOCTL_MODE_GETCONNECTOR", "uapi_number": 167, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "connector_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "modes", "direction": "output", "records": ["mode_info"], "minimum": 0, "maximum": 4096 },
+          { "argument_id": 3, "role": 2, "name": "properties", "direction": "output", "records": ["property_value"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 4, "role": 3, "name": "encoders", "direction": "output", "records": ["object_id"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] }, "completion": { "inline_record": "connector_result", "spans": [], "attachments": [] } },
+      { "id": 16, "name": "attach_mode", "uapi_command": "DRM_IOCTL_MODE_ATTACHMODE", "uapi_number": 168, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "mode_command_request", "spans": [{ "argument_id": 2, "role": 1, "name": "mode", "direction": "input", "records": ["mode_info"], "minimum": 1, "maximum": 1 }], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 17, "name": "detach_mode", "uapi_command": "DRM_IOCTL_MODE_DETACHMODE", "uapi_number": 169, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "mode_command_request", "spans": [{ "argument_id": 2, "role": 1, "name": "mode", "direction": "input", "records": ["mode_info"], "minimum": 1, "maximum": 1 }], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 18, "name": "get_property", "uapi_command": "DRM_IOCTL_MODE_GETPROPERTY", "uapi_number": 170, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "property_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "values", "direction": "output", "records": ["scalar_u64"], "minimum": 0, "maximum": 65536 },
+          { "argument_id": 3, "role": 2, "name": "enums", "direction": "output", "records": ["property_enum"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] }, "completion": { "inline_record": "property_result", "spans": [], "attachments": [] } },
+      { "id": 19, "name": "set_property", "uapi_command": "DRM_IOCTL_MODE_SETPROPERTY", "uapi_number": 171, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "set_property_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 20, "name": "get_property_blob", "uapi_command": "DRM_IOCTL_MODE_GETPROPBLOB", "uapi_number": 172, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "blob_get_request", "spans": [{ "argument_id": 2, "role": 1, "name": "data", "direction": "output", "records": ["byte"], "minimum": 0, "maximum": 16777216 }], "attachments": [] }, "completion": { "inline_record": "length_result", "spans": [], "attachments": [] } },
+      { "id": 21, "name": "get_fb", "uapi_command": "DRM_IOCTL_MODE_GETFB", "uapi_number": 173, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "fb_get_request", "spans": [], "attachments": [] }, "completion": { "inline_record": "fb_legacy", "spans": [], "attachments": [] } },
+      { "id": 22, "name": "add_fb", "uapi_command": "DRM_IOCTL_MODE_ADDFB", "uapi_number": 174, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "fb_legacy_create", "spans": [], "attachments": [] }, "completion": { "inline_record": "object_id_result", "spans": [], "attachments": [] } },
+      { "id": 23, "name": "remove_fb", "uapi_command": "DRM_IOCTL_MODE_RMFB", "uapi_number": 175, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "object_id_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 24, "name": "page_flip", "uapi_command": "DRM_IOCTL_MODE_PAGE_FLIP", "uapi_number": 176, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "page_flip_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 25, "name": "dirty_fb", "uapi_command": "DRM_IOCTL_MODE_DIRTYFB", "uapi_number": 177, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "dirty_fb_request", "spans": [{ "argument_id": 2, "role": 1, "name": "rectangles", "direction": "input", "records": ["rectangle"], "minimum": 0, "maximum": 256 }], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 26, "name": "create_dumb", "uapi_command": "DRM_IOCTL_MODE_CREATE_DUMB", "uapi_number": 178, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "dumb_create_request", "spans": [], "attachments": [] }, "completion": { "inline_record": "dumb_create_result", "spans": [], "attachments": [] } },
+      { "id": 27, "name": "map_dumb", "uapi_command": "DRM_IOCTL_MODE_MAP_DUMB", "uapi_number": 179, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "map_request", "spans": [], "attachments": [] }, "completion": { "inline_record": "mapping_result", "spans": [], "attachments": [{ "argument_id": 2, "role": 1, "name": "mapping", "class": "memory", "ownership": "share", "optional": false }] } },
+      { "id": 28, "name": "destroy_dumb", "uapi_command": "DRM_IOCTL_MODE_DESTROY_DUMB", "uapi_number": 180, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "object_id", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 29, "name": "get_plane_resources", "uapi_command": "DRM_IOCTL_MODE_GETPLANERESOURCES", "uapi_number": 181, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "plane_resources_request", "spans": [{ "argument_id": 2, "role": 1, "name": "planes", "direction": "output", "records": ["object_id"], "minimum": 0, "maximum": 65536 }], "attachments": [] }, "completion": { "inline_record": "topology_count_result", "spans": [], "attachments": [] } },
+      { "id": 30, "name": "get_plane", "uapi_command": "DRM_IOCTL_MODE_GETPLANE", "uapi_number": 182, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "plane_get_request", "spans": [{ "argument_id": 2, "role": 1, "name": "formats", "direction": "output", "records": ["object_id"], "minimum": 0, "maximum": 65536 }], "attachments": [] }, "completion": { "inline_record": "plane_result", "spans": [], "attachments": [] } },
+      { "id": 31, "name": "set_plane", "uapi_command": "DRM_IOCTL_MODE_SETPLANE", "uapi_number": 183, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "plane_set_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 32, "name": "add_fb2", "uapi_command": "DRM_IOCTL_MODE_ADDFB2", "uapi_number": 184, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "fb2", "spans": [], "attachments": [] }, "completion": { "inline_record": "object_id_result", "spans": [], "attachments": [] } },
+      { "id": 33, "name": "object_get_properties", "uapi_command": "DRM_IOCTL_MODE_OBJ_GETPROPERTIES", "uapi_number": 185, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "object_properties_request", "spans": [{ "argument_id": 2, "role": 1, "name": "properties", "direction": "output", "records": ["property_value"], "minimum": 0, "maximum": 65536 }], "attachments": [] }, "completion": { "inline_record": "topology_count_result", "spans": [], "attachments": [] } },
+      { "id": 34, "name": "object_set_property", "uapi_command": "DRM_IOCTL_MODE_OBJ_SETPROPERTY", "uapi_number": 186, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "object_set_property_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 35, "name": "cursor2", "uapi_command": "DRM_IOCTL_MODE_CURSOR2", "uapi_number": 187, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "cursor2_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 36, "name": "atomic", "uapi_command": "DRM_IOCTL_MODE_ATOMIC", "uapi_number": 188, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "atomic_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "objects", "direction": "input", "records": ["atomic_object"], "minimum": 1, "maximum": 65536 },
+          { "argument_id": 3, "role": 2, "name": "properties", "direction": "input", "records": ["atomic_property"], "minimum": 1, "maximum": 65536 },
+          { "argument_id": 4, "role": 3, "name": "fences", "direction": "output", "records": ["atomic_fence_result"], "minimum": 0, "maximum": 65536 }
+        ], "attachments": [] }, "completion": { "inline_record": "atomic_result", "spans": [], "attachments": [] } },
+      { "id": 37, "name": "create_property_blob", "uapi_command": "DRM_IOCTL_MODE_CREATEPROPBLOB", "uapi_number": 189, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "blob_create_request", "spans": [{ "argument_id": 2, "role": 1, "name": "data", "direction": "input", "records": ["byte"], "minimum": 0, "maximum": 16777216 }], "attachments": [] }, "completion": { "inline_record": "object_id_result", "spans": [], "attachments": [] } },
+      { "id": 38, "name": "destroy_property_blob", "uapi_command": "DRM_IOCTL_MODE_DESTROYPROPBLOB", "uapi_number": 190, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "object_id_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 39, "name": "create_lease", "uapi_command": "DRM_IOCTL_MODE_CREATE_LEASE", "uapi_number": 198, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "lease_create_request", "spans": [{ "argument_id": 2, "role": 1, "name": "objects", "direction": "input", "records": ["object_id"], "minimum": 0, "maximum": 65536 }], "attachments": [] }, "completion": { "inline_record": "lease_create_result", "spans": [], "attachments": [{ "argument_id": 2, "role": 1, "name": "lease_session", "class": "session", "ownership": "move", "optional": false }] } },
+      { "id": 40, "name": "list_lessees", "uapi_command": "DRM_IOCTL_MODE_LIST_LESSEES", "uapi_number": 199, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "capacity_request", "spans": [{ "argument_id": 2, "role": 1, "name": "lessees", "direction": "output", "records": ["lessee_id"], "minimum": 0, "maximum": 65536 }], "attachments": [] }, "completion": { "inline_record": "count_result", "spans": [], "attachments": [] } },
+      { "id": 41, "name": "get_lease", "uapi_command": "DRM_IOCTL_MODE_GET_LEASE", "uapi_number": 200, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "lease_get_request", "spans": [{ "argument_id": 2, "role": 1, "name": "objects", "direction": "output", "records": ["object_id"], "minimum": 0, "maximum": 65536 }], "attachments": [] }, "completion": { "inline_record": "topology_count_result", "spans": [], "attachments": [] } },
+      { "id": 42, "name": "revoke_lease", "uapi_command": "DRM_IOCTL_MODE_REVOKE_LEASE", "uapi_number": 201, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "lease_revoke_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 43, "name": "get_fb2", "uapi_command": "DRM_IOCTL_MODE_GETFB2", "uapi_number": 206, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "fb_get_request", "spans": [], "attachments": [] }, "completion": { "inline_record": "fb2", "spans": [], "attachments": [] } },
+      { "id": 44, "name": "close_fb", "uapi_command": "DRM_IOCTL_MODE_CLOSEFB", "uapi_number": 208, "cancellation": "before-dispatch", "deadline": "forbidden", "request": { "inline_record": "object_id_request", "spans": [], "attachments": [] }, "completion": { "inline_record": null, "spans": [], "attachments": [] } }
+    ]
+  },
+  "structures": {}
+}

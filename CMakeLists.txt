@@ -18,6 +18,7 @@ add_library(kobox2::kobox2 ALIAS kobox2)
 add_library(
     kobox2_protocol STATIC
     protocol/src/closure_manifest.c
+    protocol/src/gpu.c
     protocol/src/protocol.c
     protocol/src/resource_grant.c
     protocol/src/sha256.c
@@ -77,6 +78,8 @@ if(BUILD_TESTING)
     target_link_libraries(kobox2_protocol_test PRIVATE kobox2::protocol)
     add_executable(kobox2_resource_grant_test tests/resource_grant_test.c)
     target_link_libraries(kobox2_resource_grant_test PRIVATE kobox2::protocol)
+    add_executable(kobox2_gpu_protocol_test tests/gpu_protocol_test.c)
+    target_link_libraries(kobox2_gpu_protocol_test PRIVATE kobox2::protocol)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_library(
             kobox2_test_transport STATIC
@@ -133,6 +136,7 @@ if(BUILD_TESTING)
         target_compile_options(kobox2_test_closure PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(kobox2_protocol_test PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(kobox2_resource_grant_test PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(kobox2_gpu_protocol_test PRIVATE -Wall -Wextra -Wpedantic)
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             target_compile_options(kobox2_test_transport PRIVATE -Wall -Wextra -Wpedantic)
             target_compile_options(kobox2_virtqueue_test PRIVATE -Wall -Wextra -Wpedantic)
@@ -148,6 +152,7 @@ if(BUILD_TESTING)
         target_compile_options(kobox2_test_closure PRIVATE /W4)
         target_compile_options(kobox2_protocol_test PRIVATE /W4)
         target_compile_options(kobox2_resource_grant_test PRIVATE /W4)
+        target_compile_options(kobox2_gpu_protocol_test PRIVATE /W4)
     endif()
 
     if(KB2_ENABLE_SANITIZERS)
@@ -177,6 +182,11 @@ if(BUILD_TESTING)
         target_link_options(
             kobox2_resource_grant_test PRIVATE -fsanitize=address,undefined
         )
+        target_compile_options(
+            kobox2_gpu_protocol_test
+            PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
+        )
+        target_link_options(kobox2_gpu_protocol_test PRIVATE -fsanitize=address,undefined)
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             target_compile_options(
                 kobox2_test_transport
@@ -211,6 +221,7 @@ if(BUILD_TESTING)
     add_test(NAME kobox2.closure COMMAND kobox2_closure_test)
     add_test(NAME kobox2.protocol COMMAND kobox2_protocol_test)
     add_test(NAME kobox2.resource_grant COMMAND kobox2_resource_grant_test)
+    add_test(NAME kobox2.gpu_protocol COMMAND kobox2_gpu_protocol_test)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_test(NAME kobox2.virtqueue COMMAND kobox2_virtqueue_test)
         add_test(
@@ -247,10 +258,16 @@ install(FILES include/kobox2/closure.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/protocol.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/closure_manifest.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/resource_grant.h DESTINATION include/kobox2)
+install(FILES protocol/include/kobox2/gpu.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/sha256.h DESTINATION include/kobox2)
 install(
     FILES
         protocol/generated/include/kobox2/closure_layout.h
+        protocol/generated/include/kobox2/gpu_layout.h
+        protocol/generated/include/kobox2/gpu_drm_core_layout.h
+        protocol/generated/include/kobox2/gpu_drm_mode_layout.h
+        protocol/generated/include/kobox2/gpu_drm_virtgpu_layout.h
+        protocol/generated/include/kobox2/gpu_drm_amdgpu_layout.h
         protocol/generated/include/kobox2/protocol_layout.h
         protocol/generated/include/kobox2/resource_grant_layout.h
     DESTINATION include/kobox2

@@ -1,0 +1,296 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.gpu",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "uapi_release": "Linux 6.18.48",
+  "command_sets": [
+    { "set_id": 1, "schema": "kobox2.gpu.drm-core" },
+    { "set_id": 2, "schema": "kobox2.gpu.drm-mode" },
+    { "set_id": 3, "schema": "kobox2.gpu.drm-virtgpu" },
+    { "set_id": 4, "schema": "kobox2.gpu.drm-amdgpu" }
+  ],
+  "profiles": [
+    { "profile_kind": 1, "name": "virgl", "command_sets": [1, 2, 3] },
+    { "profile_kind": 2, "name": "amdgpu", "command_sets": [1, 2, 4] }
+  ],
+  "constants": {
+    "protocol_id": 5591111,
+    "max_command_sets": 16,
+    "max_event_sets": 16,
+    "max_limits": 64,
+    "max_arguments": 256,
+    "max_spans": 128,
+    "max_attachments": 64,
+    "max_inline_bytes": 4096,
+    "profile_virgl": 1,
+    "profile_amdgpu": 2,
+    "profile_flag_primary": 1,
+    "profile_flag_render": 2,
+    "queue_control": 1,
+    "queue_display": 2,
+    "queue_execution": 3,
+    "opcode_profile_query": 1,
+    "opcode_session_open": 2,
+    "opcode_session_close": 3,
+    "opcode_command": 4,
+    "opcode_cancel": 5,
+    "opcode_notify": 6,
+    "opcode_device_fault": 7,
+    "node_primary": 1,
+    "node_render": 2,
+    "span_right_read": 1,
+    "span_right_write": 2,
+    "span_flag_input": 1,
+    "span_flag_output": 2,
+    "argument_u64": 1,
+    "argument_i64": 2,
+    "argument_bool": 3,
+    "argument_enum": 4,
+    "argument_bitset": 5,
+    "argument_object": 6,
+    "argument_inline": 7,
+    "argument_span": 8,
+    "argument_attachment": 9,
+    "argument_flag_input": 1,
+    "argument_flag_output": 2,
+    "attachment_memory": 1,
+    "attachment_dma_buf": 2,
+    "attachment_sync_file": 3,
+    "attachment_event": 4,
+    "attachment_session": 5,
+    "attachment_syncobj": 6,
+    "attachment_borrow": 1,
+    "attachment_share": 2,
+    "attachment_move": 3,
+    "attachment_flag_input": 1,
+    "attachment_flag_output": 2,
+    "status_ok": 0,
+    "status_invalid": 1,
+    "status_unsupported": 2,
+    "status_denied": 3,
+    "status_not_found": 4,
+    "status_stale_generation": 5,
+    "status_limit": 6,
+    "status_no_memory": 7,
+    "status_busy": 8,
+    "status_timed_out": 9,
+    "status_canceled": 10,
+    "status_session_lost": 11,
+    "status_device_lost": 12,
+    "disposition_completed": 1,
+    "disposition_submitted": 2,
+    "disposition_canceled": 3,
+    "disposition_cancel_unavailable": 4,
+    "fault_context": 1,
+    "fault_engine": 2,
+    "fault_device": 3,
+    "fault_protocol": 4,
+    "limit_sessions": 1,
+    "limit_inflight_requests": 2,
+    "limit_execution_lanes": 3,
+    "limit_inline_bytes": 4,
+    "limit_spans": 5,
+    "limit_attachments": 6,
+    "limit_command_bytes": 7,
+    "limit_session_objects": 8,
+    "limit_gpu_memory": 9,
+    "limit_pinned_memory": 10,
+    "limit_mappings": 11,
+    "limit_contexts": 12,
+    "limit_sync_objects": 13,
+    "limit_kms_objects": 14,
+    "limit_event_backlog": 15,
+    "limit_wait_ns": 16
+  },
+  "structures": {
+    "profile_header": {
+      "size": 128,
+      "fields": [
+        { "name": "total_size", "type": "u32", "offset": 0 },
+        { "name": "abi_identity", "type": "u8[4]", "offset": 4 },
+        { "name": "schema_digest", "type": "u8[32]", "offset": 8 },
+        { "name": "profile_kind", "type": "u32", "offset": 40 },
+        { "name": "flags", "type": "u32", "offset": 44 },
+        { "name": "execution_queue_count", "type": "u32", "offset": 48 },
+        { "name": "command_set_count", "type": "u32", "offset": 52 },
+        { "name": "event_set_count", "type": "u32", "offset": 56 },
+        { "name": "limit_count", "type": "u32", "offset": 60 },
+        { "name": "command_set_table_offset", "type": "u32", "offset": 64 },
+        { "name": "event_set_table_offset", "type": "u32", "offset": 68 },
+        { "name": "limit_table_offset", "type": "u32", "offset": 72 },
+        { "name": "reserved_0", "type": "u32", "offset": 76 },
+        { "name": "closure_digest", "type": "u8[32]", "offset": 80 },
+        { "name": "reserved_1", "type": "u8[16]", "offset": 112 }
+      ]
+    },
+    "schema_set_descriptor": {
+      "size": 48,
+      "fields": [
+        { "name": "set_id", "type": "u32", "offset": 0 },
+        { "name": "flags", "type": "u32", "offset": 4 },
+        { "name": "schema_digest", "type": "u8[32]", "offset": 8 },
+        { "name": "reserved", "type": "u8[8]", "offset": 40 }
+      ]
+    },
+    "limit_descriptor": {
+      "size": 16,
+      "fields": [
+        { "name": "limit_id", "type": "u32", "offset": 0 },
+        { "name": "reserved", "type": "u32", "offset": 4 },
+        { "name": "value", "type": "u64", "offset": 8 }
+      ]
+    },
+    "command_header": {
+      "size": 128,
+      "fields": [
+        { "name": "total_size", "type": "u32", "offset": 0 },
+        { "name": "abi_identity", "type": "u8[4]", "offset": 4 },
+        { "name": "schema_digest", "type": "u8[32]", "offset": 8 },
+        { "name": "generation", "type": "u64", "offset": 40 },
+        { "name": "session_id", "type": "u64", "offset": 48 },
+        { "name": "command_set_id", "type": "u32", "offset": 56 },
+        { "name": "command_id", "type": "u32", "offset": 60 },
+        { "name": "flags", "type": "u32", "offset": 64 },
+        { "name": "argument_count", "type": "u32", "offset": 68 },
+        { "name": "span_count", "type": "u32", "offset": 72 },
+        { "name": "attachment_count", "type": "u32", "offset": 76 },
+        { "name": "inline_length", "type": "u32", "offset": 80 },
+        { "name": "argument_table_offset", "type": "u32", "offset": 84 },
+        { "name": "span_table_offset", "type": "u32", "offset": 88 },
+        { "name": "attachment_table_offset", "type": "u32", "offset": 92 },
+        { "name": "inline_offset", "type": "u32", "offset": 96 },
+        { "name": "reserved_0", "type": "u32", "offset": 100 },
+        { "name": "deadline_ns", "type": "u64", "offset": 104 },
+        { "name": "reserved_1", "type": "u8[16]", "offset": 112 }
+      ]
+    },
+    "argument_descriptor": {
+      "size": 32,
+      "fields": [
+        { "name": "argument_id", "type": "u32", "offset": 0 },
+        { "name": "kind", "type": "u32", "offset": 4 },
+        { "name": "flags", "type": "u32", "offset": 8 },
+        { "name": "record_schema_id", "type": "u32", "offset": 12 },
+        { "name": "value", "type": "u64", "offset": 16 },
+        { "name": "count", "type": "u32", "offset": 24 },
+        { "name": "reserved", "type": "u32", "offset": 28 }
+      ]
+    },
+    "span_descriptor": {
+      "size": 40,
+      "fields": [
+        { "name": "span_id", "type": "u32", "offset": 0 },
+        { "name": "region_id", "type": "u32", "offset": 4 },
+        { "name": "offset", "type": "u64", "offset": 8 },
+        { "name": "length", "type": "u64", "offset": 16 },
+        { "name": "rights", "type": "u32", "offset": 24 },
+        { "name": "record_schema_id", "type": "u32", "offset": 28 },
+        { "name": "element_count", "type": "u32", "offset": 32 },
+        { "name": "flags", "type": "u32", "offset": 36 }
+      ]
+    },
+    "attachment_descriptor": {
+      "size": 48,
+      "fields": [
+        { "name": "attachment_id", "type": "u32", "offset": 0 },
+        { "name": "object_class", "type": "u32", "offset": 4 },
+        { "name": "exchange_id", "type": "u64", "offset": 8 },
+        { "name": "generation", "type": "u64", "offset": 16 },
+        { "name": "rights", "type": "u64", "offset": 24 },
+        { "name": "role", "type": "u32", "offset": 32 },
+        { "name": "ownership", "type": "u32", "offset": 36 },
+        { "name": "flags", "type": "u32", "offset": 40 },
+        { "name": "reserved", "type": "u32", "offset": 44 }
+      ]
+    },
+    "completion_header": {
+      "size": 104,
+      "fields": [
+        { "name": "total_size", "type": "u32", "offset": 0 },
+        { "name": "abi_identity", "type": "u8[4]", "offset": 4 },
+        { "name": "schema_digest", "type": "u8[32]", "offset": 8 },
+        { "name": "session_id", "type": "u64", "offset": 40 },
+        { "name": "status", "type": "u32", "offset": 48 },
+        { "name": "disposition", "type": "u32", "offset": 52 },
+        { "name": "argument_count", "type": "u32", "offset": 56 },
+        { "name": "span_count", "type": "u32", "offset": 60 },
+        { "name": "attachment_count", "type": "u32", "offset": 64 },
+        { "name": "inline_length", "type": "u32", "offset": 68 },
+        { "name": "argument_table_offset", "type": "u32", "offset": 72 },
+        { "name": "span_table_offset", "type": "u32", "offset": 76 },
+        { "name": "attachment_table_offset", "type": "u32", "offset": 80 },
+        { "name": "inline_offset", "type": "u32", "offset": 84 },
+        { "name": "detail_set_id", "type": "u32", "offset": 88 },
+        { "name": "detail_code", "type": "u32", "offset": 92 },
+        { "name": "reserved", "type": "u8[8]", "offset": 96 }
+      ]
+    },
+    "session_open_request": {
+      "size": 24,
+      "fields": [
+        { "name": "node_type", "type": "u32", "offset": 0 },
+        { "name": "flags", "type": "u32", "offset": 4 },
+        { "name": "client_id", "type": "u64", "offset": 8 },
+        { "name": "reserved", "type": "u64", "offset": 16 }
+      ]
+    },
+    "session_open_response": {
+      "size": 32,
+      "fields": [
+        { "name": "session_id", "type": "u64", "offset": 0 },
+        { "name": "topology_epoch", "type": "u64", "offset": 8 },
+        { "name": "capabilities", "type": "u64", "offset": 16 },
+        { "name": "reserved", "type": "u64", "offset": 24 }
+      ]
+    },
+    "session_close_request": {
+      "size": 16,
+      "fields": [
+        { "name": "session_id", "type": "u64", "offset": 0 },
+        { "name": "flags", "type": "u32", "offset": 8 },
+        { "name": "reserved", "type": "u32", "offset": 12 }
+      ]
+    },
+    "cancel_request": {
+      "size": 24,
+      "fields": [
+        { "name": "session_id", "type": "u64", "offset": 0 },
+        { "name": "correlation_id", "type": "u64", "offset": 8 },
+        { "name": "flags", "type": "u32", "offset": 16 },
+        { "name": "reserved", "type": "u32", "offset": 20 }
+      ]
+    },
+    "notify_header": {
+      "size": 64,
+      "fields": [
+        { "name": "session_id", "type": "u64", "offset": 0 },
+        { "name": "event_set_id", "type": "u32", "offset": 8 },
+        { "name": "event_id", "type": "u32", "offset": 12 },
+        { "name": "event_sequence", "type": "u64", "offset": 16 },
+        { "name": "topology_epoch", "type": "u64", "offset": 24 },
+        { "name": "payload_length", "type": "u32", "offset": 32 },
+        { "name": "span_count", "type": "u32", "offset": 36 },
+        { "name": "attachment_count", "type": "u32", "offset": 40 },
+        { "name": "payload_offset", "type": "u32", "offset": 44 },
+        { "name": "span_table_offset", "type": "u32", "offset": 48 },
+        { "name": "attachment_table_offset", "type": "u32", "offset": 52 },
+        { "name": "reserved", "type": "u8[8]", "offset": 56 }
+      ]
+    },
+    "device_fault": {
+      "size": 48,
+      "fields": [
+        { "name": "fault_class", "type": "u32", "offset": 0 },
+        { "name": "source_set_id", "type": "u32", "offset": 4 },
+        { "name": "source_id", "type": "u32", "offset": 8 },
+        { "name": "reset_required", "type": "u32", "offset": 12 },
+        { "name": "guilty_session_id", "type": "u64", "offset": 16 },
+        { "name": "diagnostic_token", "type": "u64", "offset": 24 },
+        { "name": "reserved", "type": "u8[16]", "offset": 32 }
+      ]
+    }
+  }
+}

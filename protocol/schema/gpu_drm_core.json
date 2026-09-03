@@ -1,0 +1,319 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.gpu.drm-core",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "base_schema": "kobox2.gpu",
+  "uapi_release": "Linux 6.18.48",
+  "uapi_headers": ["drm/drm.h"],
+  "constants": {
+    "set_id": 1,
+    "command_count": 26,
+    "record_count": 33,
+    "max_text_bytes": 4096,
+    "max_client_name_bytes": 64,
+    "max_syncobjs": 65536,
+    "max_stats": 15,
+    "command_version": 1,
+    "command_get_unique": 2,
+    "command_get_client": 3,
+    "command_get_stats": 4,
+    "command_set_version": 5,
+    "command_get_cap": 6,
+    "command_set_client_cap": 7,
+    "command_set_client_name": 8,
+    "command_gem_close": 9,
+    "command_gem_flink": 10,
+    "command_gem_open": 11,
+    "command_gem_change_handle": 12,
+    "command_prime_handle_to_attachment": 13,
+    "command_prime_attachment_to_handle": 14,
+    "command_syncobj_create": 15,
+    "command_syncobj_destroy": 16,
+    "command_syncobj_handle_to_attachment": 17,
+    "command_syncobj_attachment_to_handle": 18,
+    "command_syncobj_wait": 19,
+    "command_syncobj_reset": 20,
+    "command_syncobj_signal": 21,
+    "command_syncobj_timeline_wait": 22,
+    "command_syncobj_query": 23,
+    "command_syncobj_transfer": 24,
+    "command_syncobj_timeline_signal": 25,
+    "command_syncobj_event_arm": 26
+  },
+  "records": [
+    { "id": 101, "name": "byte", "fields": [
+      { "name": "value", "type": "u8" }
+    ] },
+    { "id": 102, "name": "version_request", "fields": [
+      { "name": "name_capacity", "type": "u32" },
+      { "name": "date_capacity", "type": "u32" },
+      { "name": "description_capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 103, "name": "version_result", "fields": [
+      { "name": "major", "type": "i32" },
+      { "name": "minor", "type": "i32" },
+      { "name": "patch", "type": "i32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "name_bytes", "type": "u32" },
+      { "name": "date_bytes", "type": "u32" },
+      { "name": "description_bytes", "type": "u32" },
+      { "name": "required_flags", "type": "u32" }
+    ] },
+    { "id": 104, "name": "length_request", "fields": [
+      { "name": "capacity", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 105, "name": "length_result", "fields": [
+      { "name": "bytes", "type": "u32" },
+      { "name": "required_bytes", "type": "u32" }
+    ] },
+    { "id": 106, "name": "client_request", "fields": [
+      { "name": "index", "type": "i32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 107, "name": "client_result", "fields": [
+      { "name": "authenticated", "type": "i32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "process_id", "type": "u64" },
+      { "name": "user_id", "type": "u64" },
+      { "name": "magic", "type": "u64" },
+      { "name": "ioctl_count", "type": "u64" }
+    ] },
+    { "id": 108, "name": "stat_entry", "fields": [
+      { "name": "value", "type": "u64" },
+      { "name": "type", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 109, "name": "count_result", "fields": [
+      { "name": "count", "type": "u32" },
+      { "name": "required_count", "type": "u32" }
+    ] },
+    { "id": 110, "name": "set_version", "fields": [
+      { "name": "interface_major", "type": "i32" },
+      { "name": "interface_minor", "type": "i32" },
+      { "name": "driver_major", "type": "i32" },
+      { "name": "driver_minor", "type": "i32" }
+    ] },
+    { "id": 111, "name": "cap_request", "fields": [
+      { "name": "capability", "type": "u64" }
+    ] },
+    { "id": 112, "name": "scalar_u64", "fields": [
+      { "name": "value", "type": "u64" }
+    ] },
+    { "id": 113, "name": "client_cap_request", "fields": [
+      { "name": "capability", "type": "u64" },
+      { "name": "value", "type": "u64" }
+    ] },
+    { "id": 114, "name": "client_name_request", "fields": [
+      { "name": "name_bytes", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 115, "name": "gem_handle_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 116, "name": "scalar_u32", "fields": [
+      { "name": "value", "type": "u32" }
+    ] },
+    { "id": 117, "name": "gem_open_request", "fields": [
+      { "name": "name", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 118, "name": "gem_open_result", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "size", "type": "u64" }
+    ] },
+    { "id": 119, "name": "gem_change_handle_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "new_handle", "type": "u32" }
+    ] },
+    { "id": 120, "name": "prime_export_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 121, "name": "prime_import_request", "fields": [
+      { "name": "flags", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 122, "name": "syncobj_create_request", "fields": [
+      { "name": "flags", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 123, "name": "syncobj_handle_result", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 124, "name": "syncobj_export_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "point", "type": "u64" }
+    ] },
+    { "id": 125, "name": "syncobj_import_request", "fields": [
+      { "name": "flags", "type": "u32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "point", "type": "u64" }
+    ] },
+    { "id": 126, "name": "syncobj_wait_request", "fields": [
+      { "name": "handle_count", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "fence_deadline_ns", "type": "u64" }
+    ] },
+    { "id": 127, "name": "wait_result", "fields": [
+      { "name": "first_signaled", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 128, "name": "handle_u32", "fields": [
+      { "name": "handle", "type": "u32" }
+    ] },
+    { "id": 129, "name": "syncobj_array_request", "fields": [
+      { "name": "handle_count", "type": "u32" },
+      { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 130, "name": "timeline_syncobj", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "reserved", "type": "u32" },
+      { "name": "point", "type": "u64" }
+    ] },
+    { "id": 131, "name": "syncobj_query_request", "fields": [
+      { "name": "handle_count", "type": "u32" },
+      { "name": "flags", "type": "u32" }
+    ] },
+    { "id": 132, "name": "syncobj_transfer_request", "fields": [
+      { "name": "source_handle", "type": "u32" },
+      { "name": "destination_handle", "type": "u32" },
+      { "name": "source_point", "type": "u64" },
+      { "name": "destination_point", "type": "u64" },
+      { "name": "flags", "type": "u32" },
+      { "name": "reserved", "type": "u32" }
+    ] },
+    { "id": 133, "name": "syncobj_event_arm_request", "fields": [
+      { "name": "handle", "type": "u32" },
+      { "name": "flags", "type": "u32" },
+      { "name": "point", "type": "u64" }
+    ] }
+  ],
+  "command_set": {
+    "set_id": 1,
+    "queue_class": "execution",
+    "argument_model": "kobox2.gpu.argument-vector",
+    "inline_argument_id": 1,
+    "commands": [
+      { "id": 1, "name": "version", "uapi_command": "DRM_IOCTL_VERSION", "uapi_number": 0, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "version_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "name", "direction": "output", "records": ["byte"], "minimum": 0, "maximum": 4096 },
+          { "argument_id": 3, "role": 2, "name": "date", "direction": "output", "records": ["byte"], "minimum": 0, "maximum": 4096 },
+          { "argument_id": 4, "role": 3, "name": "description", "direction": "output", "records": ["byte"], "minimum": 0, "maximum": 4096 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "version_result", "spans": [], "attachments": [] } },
+      { "id": 2, "name": "get_unique", "uapi_command": "DRM_IOCTL_GET_UNIQUE", "uapi_number": 1, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "length_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "unique", "direction": "output", "records": ["byte"], "minimum": 0, "maximum": 4096 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "length_result", "spans": [], "attachments": [] } },
+      { "id": 3, "name": "get_client", "uapi_command": "DRM_IOCTL_GET_CLIENT", "uapi_number": 5, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "client_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "client_result", "spans": [], "attachments": [] } },
+      { "id": 4, "name": "get_stats", "uapi_command": "DRM_IOCTL_GET_STATS", "uapi_number": 6, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": null, "spans": [
+          { "argument_id": 2, "role": 1, "name": "stats", "direction": "output", "records": ["stat_entry"], "minimum": 0, "maximum": 15 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "count_result", "spans": [], "attachments": [] } },
+      { "id": 5, "name": "set_version", "uapi_command": "DRM_IOCTL_SET_VERSION", "uapi_number": 7, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "set_version", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "set_version", "spans": [], "attachments": [] } },
+      { "id": 6, "name": "get_cap", "uapi_command": "DRM_IOCTL_GET_CAP", "uapi_number": 12, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "cap_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "scalar_u64", "spans": [], "attachments": [] } },
+      { "id": 7, "name": "set_client_cap", "uapi_command": "DRM_IOCTL_SET_CLIENT_CAP", "uapi_number": 13, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "client_cap_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 8, "name": "set_client_name", "uapi_command": "DRM_IOCTL_SET_CLIENT_NAME", "uapi_number": 209, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "client_name_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "name", "direction": "input", "records": ["byte"], "minimum": 1, "maximum": 64 }
+        ], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 9, "name": "gem_close", "uapi_command": "DRM_IOCTL_GEM_CLOSE", "uapi_number": 9, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_handle_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 10, "name": "gem_flink", "uapi_command": "DRM_IOCTL_GEM_FLINK", "uapi_number": 10, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_handle_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "scalar_u32", "spans": [], "attachments": [] } },
+      { "id": 11, "name": "gem_open", "uapi_command": "DRM_IOCTL_GEM_OPEN", "uapi_number": 11, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_open_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "gem_open_result", "spans": [], "attachments": [] } },
+      { "id": 12, "name": "gem_change_handle", "uapi_command": "DRM_IOCTL_GEM_CHANGE_HANDLE", "uapi_number": 210, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_change_handle_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 13, "name": "prime_handle_to_attachment", "uapi_command": "DRM_IOCTL_PRIME_HANDLE_TO_FD", "uapi_number": 45, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "prime_export_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "dma_buffer", "class": "dma_buf", "ownership": "move", "optional": false }
+        ] } },
+      { "id": 14, "name": "prime_attachment_to_handle", "uapi_command": "DRM_IOCTL_PRIME_FD_TO_HANDLE", "uapi_number": 46, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "prime_import_request", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "dma_buffer", "class": "dma_buf", "ownership": "share", "optional": false }
+        ] },
+        "completion": { "inline_record": "syncobj_handle_result", "spans": [], "attachments": [] } },
+      { "id": 15, "name": "syncobj_create", "uapi_command": "DRM_IOCTL_SYNCOBJ_CREATE", "uapi_number": 191, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_create_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "syncobj_handle_result", "spans": [], "attachments": [] } },
+      { "id": 16, "name": "syncobj_destroy", "uapi_command": "DRM_IOCTL_SYNCOBJ_DESTROY", "uapi_number": 192, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "gem_handle_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 17, "name": "syncobj_handle_to_attachment", "uapi_command": "DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD", "uapi_number": 193, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_export_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "native_sync", "classes": ["syncobj", "sync_file"], "ownership": "move", "optional": false }
+        ] } },
+      { "id": 18, "name": "syncobj_attachment_to_handle", "uapi_command": "DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE", "uapi_number": 194, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_import_request", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "native_sync", "classes": ["syncobj", "sync_file"], "ownership": "share", "optional": false }
+        ] },
+        "completion": { "inline_record": "syncobj_handle_result", "spans": [], "attachments": [] } },
+      { "id": 19, "name": "syncobj_wait", "uapi_command": "DRM_IOCTL_SYNCOBJ_WAIT", "uapi_number": 195, "cancellation": "wait", "deadline": "required",
+        "request": { "inline_record": "syncobj_wait_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "handles", "direction": "input", "records": ["handle_u32"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "wait_result", "spans": [], "attachments": [] } },
+      { "id": 20, "name": "syncobj_reset", "uapi_command": "DRM_IOCTL_SYNCOBJ_RESET", "uapi_number": 196, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_array_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "handles", "direction": "input", "records": ["handle_u32"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 21, "name": "syncobj_signal", "uapi_command": "DRM_IOCTL_SYNCOBJ_SIGNAL", "uapi_number": 197, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_array_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "handles", "direction": "input", "records": ["handle_u32"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 22, "name": "syncobj_timeline_wait", "uapi_command": "DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT", "uapi_number": 202, "cancellation": "wait", "deadline": "required",
+        "request": { "inline_record": "syncobj_wait_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "syncobjs", "direction": "input", "records": ["timeline_syncobj"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "wait_result", "spans": [], "attachments": [] } },
+      { "id": 23, "name": "syncobj_query", "uapi_command": "DRM_IOCTL_SYNCOBJ_QUERY", "uapi_number": 203, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_query_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "syncobjs", "direction": "input_output", "records": ["timeline_syncobj"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "count_result", "spans": [], "attachments": [] } },
+      { "id": 24, "name": "syncobj_transfer", "uapi_command": "DRM_IOCTL_SYNCOBJ_TRANSFER", "uapi_number": 204, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_transfer_request", "spans": [], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 25, "name": "syncobj_timeline_signal", "uapi_command": "DRM_IOCTL_SYNCOBJ_TIMELINE_SIGNAL", "uapi_number": 205, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_array_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "syncobjs", "direction": "input", "records": ["timeline_syncobj"], "minimum": 1, "maximum": 65536 }
+        ], "attachments": [] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 26, "name": "syncobj_event_arm", "uapi_command": "DRM_IOCTL_SYNCOBJ_EVENTFD", "uapi_number": 207, "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "syncobj_event_arm_request", "spans": [], "attachments": [
+          { "argument_id": 2, "role": 1, "name": "event", "class": "event", "ownership": "share", "optional": false }
+        ] },
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } }
+    ]
+  },
+  "structures": {}
+}

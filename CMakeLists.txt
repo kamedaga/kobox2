@@ -95,6 +95,12 @@ if(BUILD_TESTING)
         add_executable(kobox2_virtqueue_test tests/virtqueue_test.c)
         target_link_libraries(kobox2_virtqueue_test PRIVATE kobox2_test_transport)
         add_executable(
+            kobox2_core_runtime_inline_test tests/core_runtime_inline_test.c
+        )
+        target_link_libraries(
+            kobox2_core_runtime_inline_test PRIVATE kobox2::protocol
+        )
+        add_executable(
             kobox2_test_sandbox
             tests/sandbox_child.c
         )
@@ -140,6 +146,9 @@ if(BUILD_TESTING)
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             target_compile_options(kobox2_test_transport PRIVATE -Wall -Wextra -Wpedantic)
             target_compile_options(kobox2_virtqueue_test PRIVATE -Wall -Wextra -Wpedantic)
+            target_compile_options(
+                kobox2_core_runtime_inline_test PRIVATE -Wall -Wextra -Wpedantic
+            )
             target_compile_options(kobox2_test_sandbox PRIVATE -Wall -Wextra -Wpedantic)
             target_compile_options(kobox2_host_integration_test PRIVATE -Wall -Wextra -Wpedantic)
             target_compile_options(
@@ -198,6 +207,14 @@ if(BUILD_TESTING)
             )
             target_link_options(kobox2_virtqueue_test PRIVATE -fsanitize=address,undefined)
             target_compile_options(
+                kobox2_core_runtime_inline_test
+                PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
+            )
+            target_link_options(
+                kobox2_core_runtime_inline_test
+                PRIVATE -fsanitize=address,undefined
+            )
+            target_compile_options(
                 kobox2_test_sandbox
                 PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
             )
@@ -224,6 +241,10 @@ if(BUILD_TESTING)
     add_test(NAME kobox2.gpu_protocol COMMAND kobox2_gpu_protocol_test)
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         add_test(NAME kobox2.virtqueue COMMAND kobox2_virtqueue_test)
+        add_test(
+            NAME kobox2.core_runtime_inline
+            COMMAND kobox2_core_runtime_inline_test
+        )
         add_test(
             NAME kobox2.host_process
             COMMAND
@@ -268,6 +289,9 @@ install(
         protocol/generated/include/kobox2/gpu_drm_mode_layout.h
         protocol/generated/include/kobox2/gpu_drm_virtgpu_layout.h
         protocol/generated/include/kobox2/gpu_drm_amdgpu_layout.h
+        protocol/generated/include/kobox2/core_runtime.h
+        protocol/generated/include/kobox2/core_runtime_layout.h
+        protocol/generated/include/kobox2/memory_arena_layout.h
         protocol/generated/include/kobox2/protocol_layout.h
         protocol/generated/include/kobox2/resource_grant_layout.h
     DESTINATION include/kobox2

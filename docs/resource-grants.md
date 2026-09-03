@@ -92,12 +92,19 @@ valid from init entry through cleanup return and contains:
 
 - `dev` identity and structure size;
 - generation and node ID;
+- the closure's fixed logical CPU count;
 - an opaque node resource view; and
 - runtime and core operations.
 
 Modules enumerate a slot and acquire opaque resource handles through the core
 operations. Handles retain their generation and granted rights. An absent slot,
 an invisible slot, and a stale handle produce distinct results.
+
+Binding an acquired handle requires the exact interface schema digest. A
+successful binding returns a closure-lifetime opaque object and its
+interface-specific operation table. The table begins with its structure size
+and `dev` identity. The sandbox registry verifies node visibility, generation,
+and interface digest before returning the binding.
 
 ## Native handle map
 

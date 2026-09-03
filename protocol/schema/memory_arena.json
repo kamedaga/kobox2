@@ -1,0 +1,50 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.memory-arena",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "resource_type": "memory",
+  "constants": {
+    "page_size": 4096,
+    "minimum_length": 8192,
+    "native_handle_role_memory": 0,
+    "required_rights": 7,
+    "operation_count": 1
+  },
+  "native_handles": [
+    {
+      "role": 0,
+      "name": "memory",
+      "count": 1
+    }
+  ],
+  "mapping": {
+    "alignment": 4096,
+    "length_multiple": 4096,
+    "lifetime": "resource-binding",
+    "access": "shared-read-write"
+  },
+  "linux_descriptor": {
+    "kind": "memfd",
+    "close_on_exec": true,
+    "seal_policy": "exact",
+    "required_seals": [
+      "seal",
+      "shrink",
+      "grow"
+    ]
+  },
+  "operations": [
+    {
+      "id": 1,
+      "name": "mapped_range",
+      "outputs": [
+        "address",
+        "length"
+      ]
+    }
+  ],
+  "structures": {}
+}

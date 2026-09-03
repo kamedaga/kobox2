@@ -83,11 +83,16 @@ init、quiesce、cleanupへ同じimmutable contextを渡します。contextはin
 
 - `dev` identityとstructure size
 - generationとnode ID
+- closureに固定されたlogical CPU count
 - opaqueなnode resource view
 - runtimeとcore operation
 
 moduleはcore operationを通してslotを列挙し、opaque resource handleを取得します。handleはgenerationと
 granted rightsを保持します。absent slot、invisible slot、stale handleは異なる結果になります。
+
+取得したhandleのbindingには正確なinterface schema digestを指定します。成功するとclosure lifetimeの
+opaque objectとinterface固有operation tableを返します。tableの先頭はstructure sizeと`dev` identity
+です。sandbox registryはbindingを返す前にnode visibility、generation、interface digestを検証します。
 
 ## native handle map
 

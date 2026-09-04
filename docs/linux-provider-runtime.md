@@ -110,9 +110,12 @@ ordered execution, and reclaim capacity. The complete contract is defined by
 
 ## Provider initialization
 
-`device-pci.so` initializes retained IRQ, PCI, and IOMMU entries after core is
-active. `drm.so` initializes retained dma-buf and video entries after core and
-device-pci are active. Root modules initialize after all providers are active.
+After core is active, `device-pci.so` binds PCI function slot 1, DMA domain
+slot 2, and IRQ endpoint slot 3. The exact schema, rights, generation, and
+object identity must match before it publishes the probe resource snapshot.
+It then initializes retained IRQ, PCI, and IOMMU entries. `drm.so` initializes
+retained dma-buf and video entries after core and device-pci are active. Root
+modules initialize after all providers are active.
 
 `READY` requires every provider and root module to be active. Quiesce completion
 requires provider work, callbacks, and references owned by the closure to be

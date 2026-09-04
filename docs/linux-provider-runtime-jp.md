@@ -97,7 +97,9 @@ execution、reclaim capacityを保証します。完全な契約は
 
 ## provider初期化
 
-`device-pci.so`はcore active後に保持対象のIRQ、PCI、IOMMU entryを初期化します。`drm.so`はcoreと
+core active後、`device-pci.so`はPCI function slot 1、DMA domain slot 2、IRQ endpoint slot 3を
+bindします。probe resource snapshotの公開前に正確なschema、rights、generation、object identityの
+一致を要求します。その後、保持対象のIRQ、PCI、IOMMU entryを初期化します。`drm.so`はcoreと
 device-pci active後に保持対象のdma-buf、video entryを初期化します。root moduleは全provider active後に
 initします。
 

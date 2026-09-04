@@ -27,6 +27,15 @@ SCHEMAS = (
     (ROOT / "protocol" / "schema" / "memory_arena.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "memory_arena_layout.h",
      "KB2_MEMORY_ARENA", "KOBOX2_MEMORY_ARENA_LAYOUT_H"),
+    (ROOT / "protocol" / "schema" / "pci_function.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "pci_function_layout.h",
+     "KB2_PCI_FUNCTION", "KOBOX2_PCI_FUNCTION_LAYOUT_H"),
+    (ROOT / "protocol" / "schema" / "dma_domain.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "dma_domain_layout.h",
+     "KB2_DMA_DOMAIN", "KOBOX2_DMA_DOMAIN_LAYOUT_H"),
+    (ROOT / "protocol" / "schema" / "irq_endpoint.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "irq_endpoint_layout.h",
+     "KB2_IRQ_ENDPOINT", "KOBOX2_IRQ_ENDPOINT_LAYOUT_H"),
     (ROOT / "protocol" / "schema" / "core_runtime.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "core_runtime_layout.h",
      "KB2_CORE_RUNTIME", "KOBOX2_CORE_RUNTIME_LAYOUT_H"),
@@ -480,6 +489,39 @@ def validate_memory_arena(schema):
         "outputs": ["address", "length"],
     }]:
         raise ValueError("memory arena operation contract mismatch")
+
+
+def validate_device_resource(schema, name, resource_type, native_handles,
+                             required_rights, operation_names):
+    constants = schema["constants"]
+    operations = schema.get("operations")
+
+    if schema.get("name") != name or schema.get("resource_type") != resource_type:
+        raise ValueError(f"{name} resource identity mismatch")
+    expected_handles = [
+        {"role": role, "name": handle_name, "count": 1}
+        for role, handle_name in native_handles
+    ]
+    if schema.get("native_handles") != expected_handles:
+        raise ValueError(f"{name} native handle contract mismatch")
+    for role, handle_name in native_handles:
+        if constants.get(f"native_handle_role_{handle_name}") != role:
+            raise ValueError(f"{name} native handle role mismatch")
+    if constants.get("required_rights") != required_rights:
+        raise ValueError(f"{name} required rights mismatch")
+    if (not isinstance(operations, list) or
+            constants.get("operation_count") != len(operation_names) or
+            len(operations) != len(operation_names)):
+        raise ValueError(f"{name} operation count mismatch")
+    for operation_id, (operation, expected_name) in enumerate(
+            zip(operations, operation_names), 1):
+        if (operation.get("id") != operation_id or
+                operation.get("name") != expected_name or
+                not isinstance(operation.get("inputs", []), list) or
+                not isinstance(operation.get("outputs", []), list)):
+            raise ValueError(
+                f"{name} operation contract mismatch: {expected_name}"
+            )
 
 
 def validate_core_runtime(schema):
@@ -1644,8 +1686,25 @@ def render_core_runtime_abi(schema):
         "",
         "#include <kobox2/core_runtime_layout.h>",
         "",
+        "#ifdef __KERNEL__",
+        "#include <linux/types.h>",
+        "typedef u8 uint8_t;",
+        "typedef u32 uint32_t;",
+        "typedef u64 uint64_t;",
+        "typedef s32 int32_t;",
+        "#ifndef UINT32_C",
+        "#define UINT32_C(value) value##U",
+        "#endif",
+        "#ifndef UINT32_MAX",
+        "#define UINT32_MAX (~(uint32_t)0)",
+        "#endif",
+        "#ifndef UINT64_C",
+        "#define UINT64_C(value) value##ULL",
+        "#endif",
+        "#else",
         "#include <stddef.h>",
         "#include <stdint.h>",
+        "#endif",
         "",
         "struct kobox_module_context;",
         "",
@@ -1804,6 +1863,25 @@ def main():
                   for schema, output, prefix, guard in SCHEMAS]
         schemas = {schema["name"]: schema for schema, _, _, _ in loaded}
         validate_memory_arena(schemas["kobox2.memory-arena"])
+        validate_device_resource(
+            schemas["kobox2.pci-function"], "kobox2.pci-function", "device",
+            ((0, "device"),), 7,
+            ("identity", "config_read", "config_write", "bar_info",
+             "bar_map", "bar_unmap", "bar_read", "bar_write"),
+        )
+        validate_device_resource(
+            schemas["kobox2.dma-domain"], "kobox2.dma-domain", "device",
+            ((0, "domain"), (1, "context")), 5,
+            ("constraints", "allocation_create", "allocation_release",
+             "mapping_create", "mapping_release", "sync_for_cpu",
+             "sync_for_device", "drain", "mapping_create_span"),
+        )
+        validate_device_resource(
+            schemas["kobox2.irq-endpoint"], "kobox2.irq-endpoint",
+            "notification", ((0, "endpoint"),), 1,
+            ("identity", "handler_register", "handler_unregister", "enable",
+             "disable_and_synchronize"),
+        )
         validate_core_runtime(schemas["kobox2.core-runtime"])
         validate_gpu_family(schemas)
         rendered = [(output, render(schema, prefix, guard))

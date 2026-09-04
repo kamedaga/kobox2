@@ -1,0 +1,50 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.irq-endpoint",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "resource_type": "notification",
+  "constants": {
+    "native_handle_role_endpoint": 0,
+    "required_rights": 1,
+    "operation_count": 5,
+    "maximum_endpoints_per_slot": 2048
+  },
+  "native_handles": [
+    { "role": 0, "name": "endpoint", "count": 1 }
+  ],
+  "linux_descriptor": {
+    "kind": "eventfd",
+    "close_on_exec": true,
+    "nonblocking": true,
+    "counter_width": 64
+  },
+  "operations": [
+    {
+      "id": 1,
+      "name": "identity",
+      "outputs": ["generation", "object_id"]
+    },
+    {
+      "id": 2,
+      "name": "handler_register",
+      "inputs": ["handler", "argument"]
+    },
+    {
+      "id": 3,
+      "name": "handler_unregister",
+      "inputs": ["handler", "argument"]
+    },
+    { "id": 4, "name": "enable", "inputs": [] },
+    { "id": 5, "name": "disable_and_synchronize", "inputs": [] }
+  ],
+  "semantics": {
+    "delivery": "counter-drain-to-registered-handler-on-provider-thread",
+    "enable": "delivery-admission-open",
+    "disable_and_synchronize": "admission-closed-and-no-handler-running",
+    "release": "disabled-unregistered-and-worker-joined"
+  },
+  "structures": {}
+}

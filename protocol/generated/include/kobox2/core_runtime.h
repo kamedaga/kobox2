@@ -6,8 +6,25 @@
 
 #include <kobox2/core_runtime_layout.h>
 
+#ifdef __KERNEL__
+#include <linux/types.h>
+typedef u8 uint8_t;
+typedef u32 uint32_t;
+typedef u64 uint64_t;
+typedef s32 int32_t;
+#ifndef UINT32_C
+#define UINT32_C(value) value##U
+#endif
+#ifndef UINT32_MAX
+#define UINT32_MAX (~(uint32_t)0)
+#endif
+#ifndef UINT64_C
+#define UINT64_C(value) value##ULL
+#endif
+#else
 #include <stddef.h>
 #include <stdint.h>
+#endif
 
 struct kobox_module_context;
 

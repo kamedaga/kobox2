@@ -1,0 +1,110 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.dma-domain",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "resource_type": "device",
+  "constants": {
+    "native_handle_role_domain": 0,
+    "native_handle_role_context": 1,
+    "required_rights": 5,
+    "operation_count": 9,
+    "direction_to_device": 1,
+    "direction_from_device": 2,
+    "direction_bidirectional": 3,
+    "allocation_flag_cpu_map": 1,
+    "allocation_flag_zero": 2,
+    "allocation_flag_coherent": 4,
+    "backend_iommufd": 1,
+    "backend_vfio": 2,
+    "backend_conformance": 3
+  },
+  "native_handles": [
+    { "role": 0, "name": "domain", "count": 1 },
+    { "role": 1, "name": "context", "count": 1 }
+  ],
+  "linux_descriptor": {
+    "kind": "dma-domain-capability-set",
+    "close_on_exec": true,
+    "domain_implementations": ["iommufd", "vfio-container", "conformance-backend"],
+    "context_kind": "sealed-memfd",
+    "context_seals": ["seal", "shrink", "grow", "write"]
+  },
+  "operations": [
+    {
+      "id": 1,
+      "name": "constraints",
+      "outputs": [
+        "generation", "object_id", "address_bits", "minimum_alignment",
+        "maximum_segment_length", "coherent"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "allocation_create",
+      "inputs": ["length", "alignment", "flags"],
+      "outputs": ["allocation", "cpu_address"]
+    },
+    {
+      "id": 3,
+      "name": "allocation_release",
+      "inputs": ["allocation"]
+    },
+    {
+      "id": 4,
+      "name": "mapping_create",
+      "inputs": ["allocation", "offset", "length", "direction"],
+      "outputs": ["mapping", "device_address"]
+    },
+    {
+      "id": 5,
+      "name": "mapping_release",
+      "inputs": ["mapping"]
+    },
+    {
+      "id": 6,
+      "name": "sync_for_cpu",
+      "inputs": ["mapping", "offset", "length"]
+    },
+    {
+      "id": 7,
+      "name": "sync_for_device",
+      "inputs": ["mapping", "offset", "length"]
+    },
+    {
+      "id": 8,
+      "name": "drain",
+      "outputs": ["outstanding_allocations", "outstanding_mappings"]
+    },
+    {
+      "id": 9,
+      "name": "mapping_create_span",
+      "inputs": ["cpu_address", "length", "direction"],
+      "outputs": ["mapping", "device_address"]
+    }
+  ],
+  "semantics": {
+    "address_scope": "generation-iommu-domain",
+    "object_lifetime": "allocation-owns-memory-and-mapping-borrows-allocation",
+    "span_mapping_lifetime": "caller-keeps-cpu-span-live-until-mapping-release",
+    "release_order": "mapping-before-allocation",
+    "drain": "reject-new-operations-and-report-live-objects"
+  },
+  "structures": {
+    "linux_context": {
+      "size": 64,
+      "fields": [
+        { "name": "total_size", "type": "u32", "offset": 0 },
+        { "name": "abi_identity", "type": "u8[4]", "offset": 4 },
+        { "name": "schema_digest", "type": "u8[32]", "offset": 8 },
+        { "name": "backend", "type": "u32", "offset": 40 },
+        { "name": "reserved_0", "type": "u32", "offset": 44 },
+        { "name": "backend_object_id", "type": "u32", "offset": 48 },
+        { "name": "reserved_1", "type": "u32", "offset": 52 },
+        { "name": "reserved_2", "type": "u8[8]", "offset": 56 }
+      ]
+    }
+  }
+}

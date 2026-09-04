@@ -1,0 +1,91 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.pci-function",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "resource_type": "device",
+  "constants": {
+    "config_space_size": 4096,
+    "bar_count": 6,
+    "native_handle_role_device": 0,
+    "required_rights": 7,
+    "operation_count": 8,
+    "access_width_8": 1,
+    "access_width_16": 2,
+    "access_width_32": 4,
+    "bar_flag_io": 1,
+    "bar_flag_memory": 2,
+    "bar_flag_prefetchable": 4,
+    "bar_flag_64_bit": 8,
+    "map_protection_read": 1,
+    "map_protection_write": 2
+  },
+  "native_handles": [
+    { "role": 0, "name": "device", "count": 1 }
+  ],
+  "linux_descriptor": {
+    "kind": "pci-function-capability",
+    "close_on_exec": true,
+    "implementations": ["vfio-pci-device", "conformance-backend"]
+  },
+  "operations": [
+    {
+      "id": 1,
+      "name": "identity",
+      "outputs": [
+        "generation", "object_id", "segment", "bus", "device", "function",
+        "vendor_id", "device_id", "subsystem_vendor_id",
+        "subsystem_device_id", "class_code", "revision"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "config_read",
+      "inputs": ["offset", "width"],
+      "outputs": ["value"]
+    },
+    {
+      "id": 3,
+      "name": "config_write",
+      "inputs": ["offset", "width", "value"]
+    },
+    {
+      "id": 4,
+      "name": "bar_info",
+      "inputs": ["bar"],
+      "outputs": ["length", "flags"]
+    },
+    {
+      "id": 5,
+      "name": "bar_map",
+      "inputs": ["bar", "offset", "length", "protection"],
+      "outputs": ["address"]
+    },
+    {
+      "id": 6,
+      "name": "bar_unmap",
+      "inputs": ["address", "length"]
+    },
+    {
+      "id": 7,
+      "name": "bar_read",
+      "inputs": ["bar", "offset", "width"],
+      "outputs": ["value"]
+    },
+    {
+      "id": 8,
+      "name": "bar_write",
+      "inputs": ["bar", "offset", "width", "value"]
+    }
+  ],
+  "semantics": {
+    "config_access": "naturally-aligned-8-16-or-32-bit-within-config-space",
+    "bar_mapping": "page-aligned-bounded-subrange-with-granted-protection",
+    "bar_access": "naturally-aligned-8-16-or-32-bit-within-a-mapped-subrange",
+    "mapping_lifetime": "until-bar-unmap-or-resource-release",
+    "reset_authority": "host-generation-lifecycle"
+  },
+  "structures": {}
+}

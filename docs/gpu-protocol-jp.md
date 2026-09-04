@@ -187,8 +187,8 @@ native-handle roleを持ちます。
 | interface | resource typeとrights | consumer |
 |---|---|---|
 | PCI function | device: command、map、DMA、reset-required | device-pci provider |
-| DMA domain | device: command、DMA | device-pciとGPU driver |
-| IRQ endpoint | notification: wait | GPU driver |
+| DMA domain | device: command、DMA | device-pci provider |
+| IRQ endpoint | notification: wait | device-pci provider |
 | firmware store | memory: read、map | AMDGPU driver |
 | object exchange | channel: send、receive | DRM bridge |
 | GPU data channel | channel: send、receive | GPU role root |
@@ -202,6 +202,9 @@ host lifecycleが所有します。
 各interfaceはconsumer nodeへ明示的にbindします。複数nodeが同じinterfaceを使う場合は、一つの
 closure-shared grant objectが同じunderlying authorityを保持します。sandboxはDRM closureの
 mapより前に全device interfaceをcommitします。
+
+PCI、DMA、IRQの契約とGPU closure内の固定slotは
+[device-resource-interfaces-jp.md](./device-resource-interfaces-jp.md)で定義します。
 
 ## queue topology
 

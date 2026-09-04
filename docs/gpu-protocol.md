@@ -193,8 +193,8 @@ own schema digest and native-handle roles.
 | Interface | Resource type and rights | Consumer |
 |---|---|---|
 | PCI function | device: command, map, DMA; reset-required | device-pci provider |
-| DMA domain | device: command, DMA | device-pci and GPU driver |
-| IRQ endpoint | notification: wait | GPU driver |
+| DMA domain | device: command, DMA | device-pci provider |
+| IRQ endpoint | notification: wait | device-pci provider |
 | firmware store | memory: read, map | AMDGPU driver |
 | object exchange | channel: send, receive | DRM bridge |
 | GPU data channel | channel: send, receive | GPU role root |
@@ -210,6 +210,9 @@ Every interface is explicitly bound to its consumer nodes. Sharing one
 interface between nodes uses one closure-shared grant object and preserves the
 same underlying authority. The sandbox commits all device interfaces before
 mapping the DRM closure.
+
+The PCI, DMA, and IRQ contracts and their fixed GPU closure slots are defined
+by [device-resource-interfaces.md](./device-resource-interfaces.md).
 
 ## Queue topology
 

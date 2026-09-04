@@ -24,9 +24,23 @@ task state、scheduler class、per-CPU state、waitqueue、mutex、completion、
 timer、softirq、RCU、page metadata、driver subsystemはLinuxが所有します。Koboxはこれらの上位APIを
 置き換えません。
 
-hosted portはLinuxをprocess hostへ接続するために必要な最下層のmachine境界だけを持ちます。Linux上では
-native process/thread/wait機能へ接続し、Linux subsystem semanticsを変えずに同じ境界をPachaOSへ
+hosted portはLinuxをprocess hostへ接続するために必要な最下層のmachine境界だけを持ちます。Linux PoCは
+native process/thread/wait機能を使い、Linux subsystem semanticsを変えずに同じ境界をPachaOSへ
 差し替えられる形にします。
+
+## POSIX基盤gate
+
+Linux PoCのhost surfaceはpthread、counting permit、`CLOCK_MONOTONIC`、one-shot timer、memory
+mapping、POSIX非同期通知だけに制限します。import gateは`futex`、`eventfd`、`timerfd`と未宣言host
+dependencyを拒否します。
+
+Linuxへ接続する前に、独立した2 logical-CPU domainを試験します。同じCPUへの進入直列化、異なるCPUで
+重なる実行、CPU-bound threadへのtick・IRQ配送、IRQ disable中の保持とenable時配送、park前にpostした
+permitの保持をすべて必須にします。
+
+[LKLのthread・semaphore hook](https://github.com/lkl/linux/blob/master/arch/lkl/kernel/threads.c)は
+境界の参考になりますが、[architectureが`!SMP`を選択します](https://github.com/lkl/linux/blob/master/arch/lkl/Kconfig)。
+この固定treeのUMLもCPU ID zeroだけを公開します。どちらもこのSMP gateの証拠には使いません。
 
 ## 構造gate
 

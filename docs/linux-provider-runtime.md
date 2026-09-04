@@ -25,9 +25,28 @@ waitqueues, mutexes, completions, kthreads, workqueues, timers, softirqs, RCU,
 page metadata, and driver subsystems. Kobox must not replace those upper APIs.
 
 The hosted port is limited to the lowest machine boundary required to connect
-Linux to the process host. On Linux this will use native process/thread/wait
-facilities; the same boundary can later target PachaOS without changing Linux
+Linux to the process host. The Linux PoC uses native process/thread/wait
+facilities; the same boundary can target PachaOS without changing Linux
 subsystem semantics.
+
+## POSIX foundation gate
+
+The Linux PoC host surface is restricted to pthreads, a counting permit,
+`CLOCK_MONOTONIC`, a one-shot timer, memory mapping, and POSIX asynchronous
+notification. An import gate rejects `futex`, `eventfd`, `timerfd`, and any
+undeclared host dependency.
+
+Two independent logical-CPU domains are exercised before connecting Linux.
+The gate requires same-CPU entry serialization, overlapping execution on
+different CPUs, tick and IRQ delivery to CPU-bound threads, IRQ retention while
+disabled followed by delivery on enable, and a retained permit posted before
+park.
+
+[LKL's thread and semaphore hooks](https://github.com/lkl/linux/blob/master/arch/lkl/kernel/threads.c)
+are a useful boundary reference, but its
+[architecture selects `!SMP`](https://github.com/lkl/linux/blob/master/arch/lkl/Kconfig).
+UML also exposes only CPU ID zero in this pinned tree. Neither is accepted as
+evidence for this SMP gate.
 
 ## Structural gate
 

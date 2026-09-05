@@ -48,6 +48,23 @@ are a useful boundary reference, but its
 UML also exposes only CPU ID zero in this pinned tree. Neither is accepted as
 evidence for this SMP gate.
 
+## Linux task/SMP gate
+
+The [task/SMP fixture](../linux-sandbox/kobox/task/README.md) connects real Linux
+`schedule()`, wakeup, affinity, CPU stopper migration, and task exit to pthreads.
+Only task start/switch/release, logical-CPU identity, IRQ/IPI delivery, and clock
+access cross the host boundary. The host does not choose runnable tasks.
+
+The two-CPU gate covers local/remote switching, current/per-CPU agreement,
+sleeping and running migration, preemption exclusion, IRQ deferral, and native
+join after Linux exit. The idle-wait regression also covers a pending IPI whose
+notification sequence was already observed before delivery.
+
+This isolated subsystem fixture is not an alternative production core build.
+Its fail-closed phase imports must never be loaded as a completed driver runtime.
+It does not certify timer progress, RCU grace periods, workqueue execution, full
+CPU hotplug, or complete shutdown; the boot-rooted core design above is unchanged.
+
 ## Structural gate
 
 The boot-core inventory requires the upstream x86 linker output and verifies

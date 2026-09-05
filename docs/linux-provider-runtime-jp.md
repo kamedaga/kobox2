@@ -42,6 +42,21 @@ permitの保持をすべて必須にします。
 境界の参考になりますが、[architectureが`!SMP`を選択します](https://github.com/lkl/linux/blob/master/arch/lkl/Kconfig)。
 この固定treeのUMLもCPU ID zeroだけを公開します。どちらもこのSMP gateの証拠には使いません。
 
+## Linux task/SMP gate
+
+[task/SMP fixture](../linux-sandbox/kobox/task/README-jp.md)は実Linuxの`schedule()`、wakeup、
+affinity、CPU stopperによるmigration、task exitをpthreadへ接続します。host境界を越えるのは
+taskのstart／switch／release、logical CPU識別、IRQ／IPI配送、clock取得だけで、hostはtaskを選びません。
+
+2 CPUのgateではlocal／remote切替、currentとper-CPUの一致、sleep中と実行中のmigration、
+preempt禁止、IRQ保留、Linux exit後のnative joinを検証します。idle待機の回帰試験では、配送前に
+通知sequenceを既に読んだpending IPIも検証します。
+
+この独立subsystem fixtureは製品用coreの別build方式ではありません。後続phaseの未接続部分は
+実行時に失敗するguardであり、完成したdriver runtimeとしてloadしてはいけません。
+timer進行、RCU grace period、workqueue実行、完全なCPU hotplug／shutdownは認定しません。
+上記のboot rootから固定するcore設計は変わりません。
+
 ## 構造gate
 
 boot-core inventoryはupstream x86 linkerの出力を使い、initcall、per-CPU、scheduler-class、

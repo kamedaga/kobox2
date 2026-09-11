@@ -7,6 +7,9 @@
 #include <stdint.h>
 
 #define KB2_TEST_BOOTSTRAP_FD 3
+/* Trusted POSIX launch slot, not a field in a wire message. */
+#define KB2_TEST_NATIVE_OWNER_FD 4
+#define KB2_TEST_NATIVE_IOMMU_OWNER_FD 5
 #define KB2_TEST_NOTIFICATION_COUNT 4u
 #define KB2_TEST_MAX_ARTIFACT_COUNT 64u
 #define KB2_TEST_MAX_RESOURCE_HANDLE_COUNT 64u
@@ -40,5 +43,13 @@ int kb2_test_receive_bootstrap(int socket_fd,
                                int *file_descriptors_out,
                                size_t file_descriptor_capacity,
                                size_t *file_descriptor_count_out);
+
+/* Capability-only bootstrap for native boot: no invented shared queues.
+ * Expected package digests/generation come from the launch owner separately.
+ * On receive failure, every installed descriptor is closed.
+ */
+int kb2_test_send_handles(int socket_fd, const int *descriptors, size_t count);
+int kb2_test_receive_handles(int socket_fd, int *descriptors, size_t capacity,
+                            size_t *count_out);
 
 #endif

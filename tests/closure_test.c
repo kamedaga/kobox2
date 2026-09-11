@@ -321,11 +321,78 @@ static int test_resource_validation(void) {
     return 0;
 }
 
+static int test_native_lifecycle(void) {
+    kb2_closure_builder_t *builder = NULL;
+    kb2_closure_t *closure = NULL;
+    kb2_controller_t *controller = NULL;
+    const kb2_action_t *action;
+    uint8_t digest[KB2_DIGEST_SIZE];
+    unsigned int index;
+
+    memset(digest, 0x5a, sizeof(digest));
+    CHECK(!kb2_closure_uses_native_lifecycle(NULL));
+    CHECK(create_builder(&builder) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_add_artifact(builder, 1, KB2_ARTIFACT_SHARED_PROVIDER,
+              digest, sizeof(digest), "core", 4) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_add_artifact(builder, 2, KB2_ARTIFACT_RELOCATABLE_MODULE,
+              digest, sizeof(digest), "driver", 6) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_set_native_lifecycle(builder, 1) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_set_native_lifecycle(builder, 2) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_set_native_lifecycle(builder, 2) == KB2_STATUS_INVALID_CONFIGURATION);
+    CHECK(kb2_closure_builder_set_lifecycle(builder, 2, "init", 4, "stop", 4, "exit", 4) ==
+              KB2_STATUS_INVALID_CONFIGURATION);
+    CHECK(kb2_closure_builder_add_dependency(builder, 2, 1) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_mark_root(builder, 2) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_seal(builder, &closure) == KB2_STATUS_OK);
+    CHECK(kb2_closure_uses_native_lifecycle(closure) && kb2_closure_export_count(closure) == 0);
+    CHECK(kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) == KB2_STATUS_OK);
+    CHECK(kb2_controller_set_closure(controller, closure) == KB2_STATUS_OK);
+    kb2_closure_destroy(closure);
+    closure = NULL;
+    for (index = KB2_DIGEST_PROFILE; index <= KB2_DIGEST_CHANNEL_SET; index++) {
+        CHECK(kb2_controller_set_digest(controller, (kb2_digest_kind_t)index, digest,
+                                       sizeof(digest)) == KB2_STATUS_OK);
+    }
+    CHECK(kb2_controller_set_limit(controller, KB2_LIMIT_SHARED_MEMORY_BYTES, 4096) == KB2_STATUS_OK);
+    CHECK(kb2_controller_set_limit(controller, KB2_LIMIT_CHANNEL_COUNT, 1) == KB2_STATUS_OK);
+    CHECK(kb2_controller_set_limit(controller, KB2_LIMIT_QUEUE_COUNT, 2) == KB2_STATUS_OK);
+    CHECK(kb2_controller_set_limit(controller, KB2_LIMIT_OUTSTANDING_REQUEST_COUNT, 1) == KB2_STATUS_OK);
+    CHECK(kb2_controller_start(controller) == KB2_STATUS_OK);
+    action = kb2_controller_pending_action(controller);
+    CHECK(action && kb2_closure_uses_native_lifecycle(kb2_action_closure(action)));
+    CHECK(kb2_controller_complete_action(controller, kb2_action_generation(action),
+              kb2_action_token(action), KB2_STATUS_RESOURCE_DENIED, 0, 0) == KB2_STATUS_RESOURCE_DENIED);
+    CHECK(kb2_controller_stop(controller) == KB2_STATUS_OK);
+    kb2_controller_destroy(controller);
+    kb2_closure_builder_destroy(builder);
+
+    CHECK(create_builder(&builder) == KB2_STATUS_OK);
+    CHECK(add_node(builder, 1, KB2_ARTIFACT_SHARED_PROVIDER, "core", 0) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_set_native_lifecycle(builder, 1) == KB2_STATUS_INVALID_CONFIGURATION);
+    CHECK(kb2_closure_builder_add_artifact(builder, 2, KB2_ARTIFACT_RELOCATABLE_MODULE,
+              digest, sizeof(digest), "driver", 6) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_set_native_lifecycle(builder, 2) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_add_dependency(builder, 2, 1) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_mark_root(builder, 2) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_seal(builder, &closure) == KB2_STATUS_INVALID_CONFIGURATION);
+    kb2_closure_builder_destroy(builder);
+
+    CHECK(create_builder(&builder) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_add_artifact(builder, 2, KB2_ARTIFACT_RELOCATABLE_MODULE,
+              digest, sizeof(digest), "driver", 6) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_set_native_lifecycle(builder, 2) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_mark_root(builder, 2) == KB2_STATUS_OK);
+    CHECK(kb2_closure_builder_seal(builder, &closure) == KB2_STATUS_INVALID_CONFIGURATION);
+    kb2_closure_builder_destroy(builder);
+    return 0;
+}
+
 int main(void) {
     CHECK(test_valid_closure() == 0);
     CHECK(test_cycle_rejected() == 0);
     CHECK(test_unreachable_node_rejected() == 0);
     CHECK(test_symbol_binding_validation() == 0);
     CHECK(test_resource_validation() == 0);
+    CHECK(test_native_lifecycle() == 0);
     return 0;
 }

@@ -84,6 +84,12 @@ kb2_status_t kb2_closure_builder_set_lifecycle(kb2_closure_builder_t *builder,
                                                size_t quiesce_length,
                                                const char *cleanup_symbol,
                                                size_t cleanup_length);
+/* The sandbox's native loader owns initialization and teardown. No explicit
+ * init/quiesce/cleanup exports are required. A closure cannot mix lifecycle
+ * modes, and this must be selected exactly once for every artifact.
+ */
+kb2_status_t kb2_closure_builder_set_native_lifecycle(kb2_closure_builder_t *builder,
+                                                     uint32_t node_id);
 kb2_status_t kb2_closure_builder_mark_root(kb2_closure_builder_t *builder, uint32_t node_id);
 kb2_status_t kb2_closure_builder_add_dependency(kb2_closure_builder_t *builder,
                                                 uint32_t consumer_node_id,
@@ -125,6 +131,8 @@ kb2_status_t kb2_closure_copy_manifest_digest(const kb2_closure_t *closure,
                                               uint8_t *digest_out,
                                               size_t digest_size);
 size_t kb2_closure_artifact_count(const kb2_closure_t *closure);
+/* Returns zero for an explicit-lifecycle closure or a NULL closure. */
+int kb2_closure_uses_native_lifecycle(const kb2_closure_t *closure);
 size_t kb2_closure_dependency_count(const kb2_closure_t *closure);
 size_t kb2_closure_export_count(const kb2_closure_t *closure);
 size_t kb2_closure_import_count(const kb2_closure_t *closure);

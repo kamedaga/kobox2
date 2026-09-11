@@ -14,6 +14,7 @@ struct kb2_closure_artifact_record {
     uint32_t node_id;
     kb2_artifact_kind_t kind;
     int lifecycle_set;
+    int native_lifecycle;
     int is_root;
 };
 

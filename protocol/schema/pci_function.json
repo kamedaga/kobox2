@@ -20,7 +20,13 @@
     "bar_flag_prefetchable": 4,
     "bar_flag_64_bit": 8,
     "map_protection_read": 1,
-    "map_protection_write": 2
+    "map_protection_write": 2,
+    "cache_uc": 0,
+    "cache_uc_minus": 1,
+    "cache_wc": 2,
+    "cache_wb": 3,
+    "cache_wt": 4,
+    "cache_wp": 5
   },
   "native_handles": [
     { "role": 0, "name": "device", "count": 1 }
@@ -55,12 +61,12 @@
       "id": 4,
       "name": "bar_info",
       "inputs": ["bar"],
-      "outputs": ["length", "flags"]
+      "outputs": ["cpu_address", "length", "flags"]
     },
     {
       "id": 5,
       "name": "bar_map",
-      "inputs": ["bar", "offset", "length", "protection"],
+      "inputs": ["bar", "page_offset", "length", "protection", "cache_type", "requested_address"],
       "outputs": ["address"]
     },
     {
@@ -82,7 +88,12 @@
   ],
   "semantics": {
     "config_access": "naturally-aligned-8-16-or-32-bit-within-config-space",
-    "bar_mapping": "page-aligned-bounded-subrange-with-granted-protection",
+    "bar_range": "bar-info-reports-exact-cpu-address-and-byte-length-not-page-rounded",
+    "bar_mapping": "page-offset-is-relative-to-page-aligned-bar-base-and-bounded-by-containing-page-envelope",
+    "mapping_authority": "host-must-authorize-the-whole-requested-pages-including-padding-and-enforce-protection-and-cache-type-or-fail",
+    "mapping_target": "null-selects-host-address-otherwise-exact-slot-in-caller-owned-reservation",
+    "native_addresses": "process-local-callback-values-never-serialized-on-wire",
+    "fixed_unmap": "restore-inaccessible-caller-reservation-before-releasing-mapping",
     "bar_access": "naturally-aligned-8-16-or-32-bit-within-a-mapped-subrange",
     "mapping_lifetime": "until-bar-unmap-or-resource-release",
     "reset_authority": "host-generation-lifecycle"

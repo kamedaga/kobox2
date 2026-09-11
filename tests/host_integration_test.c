@@ -129,6 +129,79 @@ static int stop_and_release(kb2_controller_t *controller, kb2_test_host_t *host)
            kb2_test_host_is_released(host);
 }
 
+static int run_startup_failure(const char *sandbox_path, const char *core_path,
+                              const char *provider_path, const char *consumer_path,
+                              int transfer_failure) {
+    kb2_controller_t *controller = NULL;
+    kb2_test_host_t host;
+    const kb2_action_t *action;
+    kb2_action_type_t failure = transfer_failure ? KB2_ACTION_TRANSFER_RESOURCES :
+                                                  KB2_ACTION_LAUNCH_SANDBOX;
+    uint64_t resource_id, sandbox_id, generation, token;
+    kb2_status_t result;
+    int success = 0;
+
+    if (!kb2_test_host_initialize(&host, sandbox_path, core_path, provider_path, consumer_path)) {
+        return 0;
+    }
+    if (kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) != KB2_STATUS_OK ||
+        !configure_controller(controller, &host) ||
+        kb2_controller_start(controller) != KB2_STATUS_OK) {
+        goto finish;
+    }
+    for (;;) {
+        action = kb2_controller_pending_action(controller);
+        if (!action) {
+            goto finish;
+        }
+        generation = kb2_action_generation(action);
+        token = kb2_action_token(action);
+        if (kb2_action_type(action) == failure) {
+            if (transfer_failure) {
+                /* Force sendmsg failure before any rights are transferred. */
+                close(host.bootstrap_socket);
+                host.bootstrap_socket = -1;
+            } else {
+                /* A real posix_spawn failure, not a synthetic completion. */
+                host.sandbox_path = "/dev/null/kobox-no-executable";
+            }
+            result = kb2_test_host_execute(&host, action, &resource_id, &sandbox_id);
+            if (result != KB2_STATUS_HOST_FAILURE || resource_id || sandbox_id ||
+                kb2_controller_complete_action(controller, generation, token, result, 0, 0) !=
+                    result) {
+                goto finish;
+            }
+            break;
+        }
+        result = kb2_test_host_execute(&host, action, &resource_id, &sandbox_id);
+        if (result != KB2_STATUS_OK ||
+            kb2_controller_complete_action(controller, generation, token, result,
+                                           resource_id, sandbox_id) != KB2_STATUS_OK) {
+            goto finish;
+        }
+    }
+    if (!stop_and_release(controller, &host)) {
+        goto finish;
+    }
+    /* Reuse the same owner/controller after rollback; no stale generation
+     * or old process may contaminate the next allocation.
+     */
+    host.sandbox_path = sandbox_path;
+    if (!start_running(controller, &host, &generation) || generation != 2 ||
+        !kb2_test_host_echo(&host, UINT64_C(0x61667465722d6661), 0) ||
+        !stop_and_release(controller, &host)) {
+        goto finish;
+    }
+    success = 1;
+finish:
+    if (!success) {
+        fprintf(stderr, "startup rollback failed: %s\n", transfer_failure ? "transfer" : "spawn");
+    }
+    kb2_test_host_destroy(&host);
+    kb2_controller_destroy(controller);
+    return success;
+}
+
 static int run_transport_and_normal_restart(const char *sandbox_path,
                                             const char *core_path,
                                             const char *provider_path,
@@ -326,6 +399,10 @@ int main(int argument_count, char **arguments) {
     }
     if (!run_transport_and_normal_restart(
             arguments[1], arguments[2], arguments[3], arguments[4])) {
+        return 1;
+    }
+    if (!run_startup_failure(arguments[1], arguments[2], arguments[3], arguments[4], 0) ||
+        !run_startup_failure(arguments[1], arguments[2], arguments[3], arguments[4], 1)) {
         return 1;
     }
     for (index = 0; index < sizeof(fault_scenarios) / sizeof(fault_scenarios[0]); ++index) {

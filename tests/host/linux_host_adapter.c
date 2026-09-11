@@ -641,6 +641,12 @@ static kb2_status_t kb2_test_host_allocate(kb2_test_host_t *host,
     int failure_error;
     kb2_status_t status;
 
+    /* This adapter launches the legacy fixture only. Never silently route
+     * a native closure through its explicit init(context) loader.
+     */
+    if (kb2_closure_uses_native_lifecycle(closure)) {
+        return KB2_STATUS_RESOURCE_DENIED;
+    }
     if (host->resource_set_id != 0 || host->shared_memory != MAP_FAILED ||
         kb2_action_resource_set_id(action) != 0 || kb2_action_sandbox_id(action) != 0) {
         return KB2_STATUS_HOST_FAILURE;
@@ -912,16 +918,24 @@ static kb2_status_t kb2_test_host_quiesce(kb2_test_host_t *host,
 }
 
 static kb2_status_t kb2_test_host_revoke(kb2_test_host_t *host, const kb2_action_t *action) {
-    if (!host->resources_transferred || host->resources_revoked || host->process_id <= 0 ||
-        host->process_fd < 0 || kb2_action_resource_set_id(action) != host->resource_set_id ||
+    if (!host->resource_set_id || host->resources_revoked ||
+        kb2_action_resource_set_id(action) != host->resource_set_id ||
         kb2_action_sandbox_id(action) != 0) {
         return KB2_STATUS_HOST_FAILURE;
     }
-    if (!host->process_exited &&
-        !kb2_test_wait_process_fd(host->process_fd, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS)) {
+    /* Allocation is owned even if spawn or descriptor transfer never
+     * succeeded. An existing child must still be dead before revocation.
+     */
+    if (host->process_id > 0) {
+        if (host->process_fd < 0 ||
+            (!host->process_exited &&
+             !kb2_test_wait_process_fd(host->process_fd, KB2_TEST_PROCESS_TIMEOUT_MILLISECONDS))) {
+            return KB2_STATUS_HOST_FAILURE;
+        }
+        host->process_exited = 1;
+    } else if (host->process_fd >= 0 || host->resources_transferred) {
         return KB2_STATUS_HOST_FAILURE;
     }
-    host->process_exited = 1;
     host->resources_revoked = 1;
     return KB2_STATUS_OK;
 }

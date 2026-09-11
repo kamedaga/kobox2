@@ -250,6 +250,28 @@ static int test_closure_manifest(void) {
            KB2_CLOSURE_ARTIFACT_DESCRIPTOR_NAMESPACE_LENGTH_OFFSET] = 0;
     CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) ==
           KB2_PROTOCOL_MALFORMED);
+    artifact.flags |= KB2_CLOSURE_ARTIFACT_FLAG_NATIVE_LINUX;
+    /* A native image cannot advertise the old init(context) lifecycle. */
+    CHECK(kb2_closure_manifest_encoded_size(&source, &encoded_size) != KB2_PROTOCOL_OK);
+    artifact.init_symbol = (kb2_closure_string_t){0};
+    artifact.quiesce_symbol = (kb2_closure_string_t){0};
+    artifact.cleanup_symbol = (kb2_closure_string_t){0};
+    CHECK(kb2_closure_manifest_encode(
+              buffer, sizeof(buffer), &encoded_size, &source) == KB2_PROTOCOL_OK);
+    CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) == KB2_PROTOCOL_OK);
+    CHECK(kb2_closure_manifest_artifact(&manifest, 0, &decoded_artifact) == KB2_PROTOCOL_OK);
+    CHECK(!decoded_artifact.init_symbol.data && !decoded_artifact.init_symbol.length);
+    CHECK(!decoded_artifact.quiesce_symbol.data && !decoded_artifact.cleanup_symbol.data);
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_SIZE +
+           KB2_CLOSURE_ARTIFACT_DESCRIPTOR_INIT_OFFSET_OFFSET] = 1;
+    CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) ==
+          KB2_PROTOCOL_MALFORMED);
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_SIZE +
+           KB2_CLOSURE_ARTIFACT_DESCRIPTOR_INIT_OFFSET_OFFSET] = 0;
+    buffer[KB2_CLOSURE_MANIFEST_HEADER_SIZE +
+           KB2_CLOSURE_ARTIFACT_DESCRIPTOR_FLAGS_OFFSET] = KB2_CLOSURE_ARTIFACT_FLAG_ROOT;
+    CHECK(kb2_closure_manifest_decode(buffer, encoded_size, &manifest) ==
+          KB2_PROTOCOL_MALFORMED);
     return 0;
 }
 

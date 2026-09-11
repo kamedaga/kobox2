@@ -15,6 +15,7 @@
     "artifact_shared_provider": 0,
     "artifact_relocatable_module": 1,
     "artifact_flag_root": 1,
+    "artifact_flag_native_linux": 2,
     "symbol_function": 0,
     "symbol_object": 1,
     "import_flag_optional": 1,
@@ -41,6 +42,12 @@
     "notification_right_signal": 2,
     "channel_right_send": 1,
     "channel_right_receive": 2
+  },
+  "native_linux_lifecycle": {
+    "flag": "artifact_flag_native_linux",
+    "entry": "shared provider uses the fixed boot entry; relocatable modules use upstream Linux module metadata",
+    "legacy_symbol_references": "init, quiesce and cleanup offsets and lengths must all be zero",
+    "legacy_loader": "must reject native Linux artifacts"
   },
   "structures": {
     "manifest_header": {

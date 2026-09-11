@@ -15,6 +15,9 @@ CORE_RUNTIME_ABI_HEADER = (
     "core_runtime.h"
 )
 SCHEMAS = (
+    (ROOT / "protocol" / "schema" / "device_port.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "device_port_layout.h",
+     "KB2_DEVICE_PORT", "KOBOX2_DEVICE_PORT_LAYOUT_H"),
     (ROOT / "protocol" / "schema" / "transport.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "protocol_layout.h",
      "KB2_PROTOCOL", "KOBOX2_PROTOCOL_LAYOUT_H"),
@@ -33,6 +36,9 @@ SCHEMAS = (
     (ROOT / "protocol" / "schema" / "dma_domain.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "dma_domain_layout.h",
      "KB2_DMA_DOMAIN", "KOBOX2_DMA_DOMAIN_LAYOUT_H"),
+    (ROOT / "protocol" / "schema" / "iommu_domain.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "iommu_domain_layout.h",
+     "KB2_IOMMU_DOMAIN", "KOBOX2_IOMMU_DOMAIN_LAYOUT_H"),
     (ROOT / "protocol" / "schema" / "irq_endpoint.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "irq_endpoint_layout.h",
      "KB2_IRQ_ENDPOINT", "KOBOX2_IRQ_ENDPOINT_LAYOUT_H"),
@@ -1875,6 +1881,10 @@ def main():
             ("constraints", "allocation_create", "allocation_release",
              "mapping_create", "mapping_release", "sync_for_cpu",
              "sync_for_device", "drain", "mapping_create_span"),
+        )
+        validate_device_resource(
+            schemas["kobox2.iommu-domain"], "kobox2.iommu-domain", "device",
+            ((0, "domain"),), 5, ("identity", "set_enabled", "map", "unmap"),
         )
         validate_device_resource(
             schemas["kobox2.irq-endpoint"], "kobox2.irq-endpoint",

@@ -295,11 +295,63 @@ static int test_stop_without_resource_reset(void) {
     return 0;
 }
 
+static int test_revoke_failure_quarantines_generation(void) {
+    kb2_controller_t *controller = NULL;
+    const kb2_action_t *action;
+    uint64_t generation, failed_token;
+    unsigned int attempt;
+
+    CHECK(kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) ==
+          KB2_STATUS_OK);
+    CHECK(configure_controller(controller) == 0);
+    CHECK(kb2_controller_start(controller) == KB2_STATUS_OK);
+    generation = kb2_controller_generation(controller);
+    CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 9, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0, 13) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_TRANSFER_RESOURCES, 0, 0) == 0);
+    CHECK(kb2_controller_report_ready(controller, generation) == KB2_STATUS_OK);
+    CHECK(kb2_controller_report_fault(controller, generation,
+                                     KB2_FAULT_PROCESS_EXIT, 9) == KB2_STATUS_OK);
+    CHECK(kb2_controller_restart(controller) == KB2_STATUS_OK);
+    for (attempt = 0; attempt < 3; attempt++) {
+        action = kb2_controller_pending_action(controller);
+        CHECK(action && kb2_action_type(action) == KB2_ACTION_REVOKE_RESOURCES);
+        CHECK(kb2_action_resource_set_id(action) == 9);
+        CHECK(kb2_action_generation(action) == generation);
+        failed_token = kb2_action_token(action);
+        CHECK(kb2_controller_complete_action(controller, generation, failed_token,
+                                             KB2_STATUS_HOST_FAILURE, 0, 0) ==
+              KB2_STATUS_HOST_FAILURE);
+        CHECK(kb2_controller_state(controller) == KB2_STATE_FAULTED);
+        CHECK(kb2_controller_fault_code(controller) == KB2_ACTION_REVOKE_RESOURCES);
+        CHECK(kb2_controller_pending_action(controller) == NULL);
+        CHECK(kb2_controller_start(controller) == KB2_STATUS_INVALID_STATE);
+        /* Retry cannot reset, release or replace the quarantined resources.
+         * A delayed success from the failed attempt cannot satisfy the retry.
+         */
+        CHECK(kb2_controller_restart(controller) == KB2_STATUS_OK);
+        CHECK(kb2_controller_generation(controller) == generation);
+        CHECK(kb2_controller_complete_action(controller, generation, failed_token,
+                                             KB2_STATUS_OK, 0, 0) == KB2_STATUS_STALE_ACTION);
+    }
+    CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_RESET_RESOURCES, 0, 0) == 0);
+    CHECK(complete_pending(controller, KB2_ACTION_REAP_SANDBOX, 0, 0) == 0);
+    CHECK(kb2_controller_generation(controller) == generation);
+    CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0, 0) == 0);
+    CHECK(kb2_controller_generation(controller) == generation + 1);
+    CHECK(kb2_action_type(kb2_controller_pending_action(controller)) ==
+          KB2_ACTION_ALLOCATE_RESOURCES);
+    kb2_controller_destroy(controller);
+    return 0;
+}
+
 int main(void) {
     CHECK(test_configuration_rejection() == 0);
     CHECK(test_start_and_restart() == 0);
     CHECK(test_host_action_failure() == 0);
     CHECK(test_action_completion_validation() == 0);
     CHECK(test_stop_without_resource_reset() == 0);
+    CHECK(test_revoke_failure_quarantines_generation() == 0);
     return 0;
 }

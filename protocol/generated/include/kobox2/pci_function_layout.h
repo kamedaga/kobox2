@@ -5,15 +5,15 @@
 #define KOBOX2_PCI_FUNCTION_LAYOUT_H
 
 #define KB2_PCI_FUNCTION_SCHEMA_SHA256_HEX \
-    "361f9e0b54a1187c3a6fcde98e7b1146" \
-    "b2cadd797551eb3612059b03cda85858"
+    "881ade09e6867bbba198a579205f3fc6" \
+    "a466ae218bc08dd555a77c62dea3018d"
 #define KB2_PCI_FUNCTION_SCHEMA_DIGEST_SIZE 32u
 #define KB2_PCI_FUNCTION_SCHEMA_SHA256_BYTES \
     { \
-        0x36, 0x1f, 0x9e, 0x0b, 0x54, 0xa1, 0x18, 0x7c, \
-        0x3a, 0x6f, 0xcd, 0xe9, 0x8e, 0x7b, 0x11, 0x46, \
-        0xb2, 0xca, 0xdd, 0x79, 0x75, 0x51, 0xeb, 0x36, \
-        0x12, 0x05, 0x9b, 0x03, 0xcd, 0xa8, 0x58, 0x58 \
+        0x88, 0x1a, 0xde, 0x09, 0xe6, 0x86, 0x7b, 0xbb, \
+        0xa1, 0x98, 0xa5, 0x79, 0x20, 0x5f, 0x3f, 0xc6, \
+        0xa4, 0x66, 0xae, 0x21, 0x8b, 0xc0, 0x8d, 0xd5, \
+        0x55, 0xa7, 0x7c, 0x62, 0xde, 0xa3, 0x01, 0x8d \
     }
 
 #define KB2_PCI_FUNCTION_ABI_IDENTITY_SIZE 4u
@@ -33,5 +33,11 @@
 #define KB2_PCI_FUNCTION_BAR_FLAG_64_BIT 8u
 #define KB2_PCI_FUNCTION_MAP_PROTECTION_READ 1u
 #define KB2_PCI_FUNCTION_MAP_PROTECTION_WRITE 2u
+#define KB2_PCI_FUNCTION_CACHE_UC 0u
+#define KB2_PCI_FUNCTION_CACHE_UC_MINUS 1u
+#define KB2_PCI_FUNCTION_CACHE_WC 2u
+#define KB2_PCI_FUNCTION_CACHE_WB 3u
+#define KB2_PCI_FUNCTION_CACHE_WT 4u
+#define KB2_PCI_FUNCTION_CACHE_WP 5u
 
 #endif

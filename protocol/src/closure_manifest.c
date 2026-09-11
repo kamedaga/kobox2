@@ -107,8 +107,14 @@ static int source_string_size(const kb2_closure_manifest_source_t *source, size_
     for (index = 0; index < source->artifact_count; ++index) {
         const kb2_closure_manifest_artifact_t *artifact = &source->artifacts[index];
 
-        if (!string_valid(artifact->namespace_name) || !string_valid(artifact->init_symbol) ||
-            !string_valid(artifact->quiesce_symbol) || !string_valid(artifact->cleanup_symbol) ||
+        int native = (artifact->flags & KB2_CLOSURE_ARTIFACT_FLAG_NATIVE_LINUX) != 0;
+
+        if (!string_valid(artifact->namespace_name) ||
+            (native ? (artifact->init_symbol.length || artifact->quiesce_symbol.length ||
+                       artifact->cleanup_symbol.length) :
+                      (!string_valid(artifact->init_symbol) ||
+                       !string_valid(artifact->quiesce_symbol) ||
+                       !string_valid(artifact->cleanup_symbol))) ||
             !add_size(&size, 1, artifact->namespace_name.length) ||
             !add_size(&size, 1, artifact->init_symbol.length) ||
             !add_size(&size, 1, artifact->quiesce_symbol.length) ||
@@ -185,6 +191,11 @@ static void store_string_reference(uint8_t *record,
                                    uint32_t string_table_offset,
                                    uint32_t *cursor,
                                    kb2_closure_string_t string) {
+    if (!string.length) {
+        store_u32(record + offset_field, 0);
+        store_u32(record + length_field, 0);
+        return;
+    }
     store_u32(record + offset_field,
               append_string(buffer, string_table_offset, cursor, string));
     store_u32(record + length_field, string.length);
@@ -404,6 +415,16 @@ static int decoded_string(const kb2_closure_manifest_t *manifest,
     return 1;
 }
 
+static int decoded_lifecycle(const kb2_closure_manifest_t *manifest,
+                             uint32_t flags, uint32_t offset, uint32_t length,
+                             kb2_closure_string_t *string_out) {
+    if (flags & KB2_CLOSURE_ARTIFACT_FLAG_NATIVE_LINUX) {
+        *string_out = (kb2_closure_string_t){0};
+        return offset == 0 && length == 0;
+    }
+    return decoded_string(manifest, offset, length, string_out);
+}
+
 static int manifest_has_node(const kb2_closure_manifest_t *manifest, uint32_t node_id) {
     size_t left = 0;
     size_t right = manifest->counts[ARTIFACTS];
@@ -604,7 +625,8 @@ kb2_protocol_status_t kb2_closure_manifest_artifact(
            sizeof(artifact_out->content_digest));
     if (artifact_out->node_id == 0 || artifact_out->content_size == 0 ||
         artifact_out->kind > KB2_CLOSURE_ARTIFACT_RELOCATABLE_MODULE ||
-        (artifact_out->flags & ~KB2_CLOSURE_ARTIFACT_FLAG_ROOT) != 0 ||
+        (artifact_out->flags & ~(KB2_CLOSURE_ARTIFACT_FLAG_ROOT |
+                                KB2_CLOSURE_ARTIFACT_FLAG_NATIVE_LINUX)) != 0 ||
         !bytes_are_zero(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_RESERVED_0_OFFSET, 4u) ||
         !bytes_are_zero(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_RESERVED_1_OFFSET, 8u) ||
         !decoded_string(manifest,
@@ -612,15 +634,15 @@ kb2_protocol_status_t kb2_closure_manifest_artifact(
                                  KB2_CLOSURE_ARTIFACT_DESCRIPTOR_NAMESPACE_OFFSET_OFFSET),
                         load_u32(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_NAMESPACE_LENGTH_OFFSET),
                         &artifact_out->namespace_name) ||
-        !decoded_string(manifest,
+        !decoded_lifecycle(manifest, artifact_out->flags,
                         load_u32(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_INIT_OFFSET_OFFSET),
                         load_u32(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_INIT_LENGTH_OFFSET),
                         &artifact_out->init_symbol) ||
-        !decoded_string(manifest,
+        !decoded_lifecycle(manifest, artifact_out->flags,
                         load_u32(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_QUIESCE_OFFSET_OFFSET),
                         load_u32(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_QUIESCE_LENGTH_OFFSET),
                         &artifact_out->quiesce_symbol) ||
-        !decoded_string(manifest,
+        !decoded_lifecycle(manifest, artifact_out->flags,
                         load_u32(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_CLEANUP_OFFSET_OFFSET),
                         load_u32(record + KB2_CLOSURE_ARTIFACT_DESCRIPTOR_CLEANUP_LENGTH_OFFSET),
                         &artifact_out->cleanup_symbol)) {

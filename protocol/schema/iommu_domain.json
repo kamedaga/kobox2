@@ -1,0 +1,50 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.iommu-domain",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "resource_type": "device",
+  "constants": {
+    "native_handle_role_domain": 0,
+    "required_rights": 5,
+    "operation_count": 4,
+    "protection_device_read": 1,
+    "protection_device_write": 2
+  },
+  "native_handles": [
+    { "role": 0, "name": "domain", "count": 1 }
+  ],
+  "operations": [
+    {
+      "id": 1,
+      "name": "identity",
+      "outputs": [
+        "generation", "object_id", "device_object_id", "ram_length",
+        "aperture_start", "aperture_end", "page_size", "coherent"
+      ]
+    },
+    { "id": 2, "name": "set_enabled", "inputs": ["enabled"] },
+    {
+      "id": 3,
+      "name": "map",
+      "inputs": ["iova", "ram_offset", "length", "protection"]
+    },
+    { "id": 4, "name": "unmap", "inputs": ["iova", "length"] }
+  ],
+  "semantics": {
+    "scope": "isolated-single-device-translation-domain-not-a-DMA-allocator",
+    "ram": "one-host-registered-RAM-backing-retained-through-domain-release; bootstrap-registration-must-validate-the-native-memory-capability",
+    "address_ownership": "Linux-allocates-pages-and-IOVAs; host-maps-the-exact-requested-IOVA-to-the-registered-RAM-offset",
+    "aperture": "inclusive-page-aligned-envelope",
+    "map": "synchronous-all-or-nothing-publication; reject-overlap-out-of-range-and-unsupported-protection",
+    "unmap": "synchronous-translation-invalidation-and-in-flight-access-drain-before-success; failure-must-not-permit-RAM-or-IOVA-reuse",
+    "disable": "block-device-access-and-drain-in-flight-accesses-before-success",
+    "release": "caller-stops-new-DMA-and-unmaps-all-translations-before-resource-release",
+    "coherency": "host-reports-actual-CPU-device-cache-coherency; cache-maintenance-is-a-RAM-machine-operation-not-an-IOVA-allocator",
+    "generation": "host-authority-revokes-and-drains-the-old-domain-before-reusing-device-or-RAM; object-identity-does-not-authorize-generation-change",
+    "wire": "IOVAs-and-RAM-offsets-only; no-CPU-addresses-or-native-handle-numbers"
+  },
+  "structures": {}
+}

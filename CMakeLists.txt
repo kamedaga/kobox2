@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(kobox2 LANGUAGES C)
 
+include(cmake/platform.cmake)
+
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 add_custom_target(
@@ -66,6 +68,9 @@ if(KB2_ENABLE_SANITIZERS)
 endif()
 
 include(CTest)
+if(KB2_BUILD_SANDBOX AND NOT BUILD_TESTING)
+    add_subdirectory(linux-sandbox/kobox)
+endif()
 if(BUILD_TESTING)
     add_library(kobox2_test_closure STATIC tests/test_closure.c)
     target_link_libraries(kobox2_test_closure PUBLIC kobox2::kobox2 kobox2::protocol)
@@ -80,7 +85,7 @@ if(BUILD_TESTING)
     target_link_libraries(kobox2_resource_grant_test PRIVATE kobox2::protocol)
     add_executable(kobox2_gpu_protocol_test tests/gpu_protocol_test.c)
     target_link_libraries(kobox2_gpu_protocol_test PRIVATE kobox2::protocol)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if(KB2_BUILD_SANDBOX AND KB2_OS_BACKEND STREQUAL "linux")
         add_library(
             kobox2_test_transport STATIC
             protocol/test/src/bootstrap.c
@@ -92,6 +97,14 @@ if(BUILD_TESTING)
             PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/protocol/test/include
         )
         target_link_libraries(kobox2_test_transport PUBLIC kobox2::protocol)
+        add_executable(kobox2_native_host_integration_test tests/native_host_integration_test.c)
+        target_link_libraries(kobox2_native_host_integration_test
+            PRIVATE kobox2::kobox2 kobox2_test_transport)
+        target_compile_options(kobox2_native_host_integration_test
+            PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        add_executable(kobox2_bootstrap_test tests/bootstrap_test.c)
+        target_link_libraries(kobox2_bootstrap_test PRIVATE kobox2_test_transport)
+        add_test(NAME kobox2.bootstrap_fd_ownership COMMAND kobox2_bootstrap_test)
         add_executable(kobox2_virtqueue_test tests/virtqueue_test.c)
         target_link_libraries(kobox2_virtqueue_test PRIVATE kobox2_test_transport)
         add_executable(
@@ -143,7 +156,7 @@ if(BUILD_TESTING)
         target_compile_options(kobox2_protocol_test PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(kobox2_resource_grant_test PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(kobox2_gpu_protocol_test PRIVATE -Wall -Wextra -Wpedantic)
-        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        if(KB2_BUILD_SANDBOX AND KB2_OS_BACKEND STREQUAL "linux")
             target_compile_options(kobox2_test_transport PRIVATE -Wall -Wextra -Wpedantic)
             target_compile_options(kobox2_virtqueue_test PRIVATE -Wall -Wextra -Wpedantic)
             target_compile_options(
@@ -196,7 +209,13 @@ if(BUILD_TESTING)
             PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
         )
         target_link_options(kobox2_gpu_protocol_test PRIVATE -fsanitize=address,undefined)
-        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        if(KB2_BUILD_SANDBOX AND KB2_OS_BACKEND STREQUAL "linux")
+            target_compile_options(kobox2_native_host_integration_test
+                PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined)
+            target_link_options(kobox2_native_host_integration_test PRIVATE -fsanitize=address,undefined)
+            target_compile_options(kobox2_bootstrap_test
+                PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined)
+            target_link_options(kobox2_bootstrap_test PRIVATE -fsanitize=address,undefined)
             target_compile_options(
                 kobox2_test_transport
                 PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined
@@ -239,7 +258,7 @@ if(BUILD_TESTING)
     add_test(NAME kobox2.protocol COMMAND kobox2_protocol_test)
     add_test(NAME kobox2.resource_grant COMMAND kobox2_resource_grant_test)
     add_test(NAME kobox2.gpu_protocol COMMAND kobox2_gpu_protocol_test)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if(KB2_BUILD_SANDBOX AND KB2_OS_BACKEND STREQUAL "linux")
         add_test(NAME kobox2.virtqueue COMMAND kobox2_virtqueue_test)
         add_test(
             NAME kobox2.core_runtime_inline
@@ -292,6 +311,7 @@ install(
         protocol/generated/include/kobox2/core_runtime.h
         protocol/generated/include/kobox2/core_runtime_layout.h
         protocol/generated/include/kobox2/memory_arena_layout.h
+        protocol/generated/include/kobox2/iommu_domain_layout.h
         protocol/generated/include/kobox2/protocol_layout.h
         protocol/generated/include/kobox2/resource_grant_layout.h
     DESTINATION include/kobox2

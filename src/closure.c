@@ -439,6 +439,27 @@ kb2_status_t kb2_closure_builder_set_lifecycle(kb2_closure_builder_t *builder,
     return KB2_STATUS_OK;
 }
 
+kb2_status_t kb2_closure_builder_set_native_lifecycle(kb2_closure_builder_t *builder,
+                                                     uint32_t node_id) {
+    struct kb2_closure_artifact_record *record;
+
+    if (builder == NULL || node_id == 0) {
+        return KB2_STATUS_INVALID_ARGUMENT;
+    }
+    record = kb2_builder_find_artifact(builder, node_id);
+    if (record == NULL || record->lifecycle_set) {
+        return KB2_STATUS_INVALID_CONFIGURATION;
+    }
+    record->lifecycle_set = 1;
+    record->native_lifecycle = 1;
+    return KB2_STATUS_OK;
+}
+
+int kb2_closure_uses_native_lifecycle(const kb2_closure_t *closure) {
+    return closure != NULL && closure->storage.artifact_count != 0 &&
+           closure->storage.artifacts[0].native_lifecycle;
+}
+
 kb2_status_t kb2_closure_builder_mark_root(kb2_closure_builder_t *builder, uint32_t node_id) {
     struct kb2_closure_artifact_record *record;
 
@@ -688,6 +709,7 @@ static size_t kb2_node_map_find(const struct kb2_node_map_entry *map,
 
 static kb2_status_t kb2_validate_artifacts(const struct kb2_closure_storage *storage) {
     size_t root_count = 0;
+    size_t provider_count = 0;
     size_t index;
 
     if (storage->artifact_count == 0) {
@@ -697,20 +719,28 @@ static kb2_status_t kb2_validate_artifacts(const struct kb2_closure_storage *sto
         const struct kb2_closure_artifact_record *artifact = &storage->artifacts[index];
 
         if (!artifact->lifecycle_set ||
+            artifact->native_lifecycle != storage->artifacts[0].native_lifecycle) {
+            return KB2_STATUS_INVALID_CONFIGURATION;
+        }
+        if (!artifact->native_lifecycle && (
             kb2_find_export(storage, artifact->node_id, artifact->init_symbol,
                             KB2_SYMBOL_FUNCTION) == NULL ||
             kb2_find_export(storage, artifact->node_id, artifact->quiesce_symbol,
                             KB2_SYMBOL_FUNCTION) == NULL ||
             kb2_find_export(storage, artifact->node_id, artifact->cleanup_symbol,
-                            KB2_SYMBOL_FUNCTION) == NULL) {
+                            KB2_SYMBOL_FUNCTION) == NULL)) {
             return KB2_STATUS_INVALID_CONFIGURATION;
         }
+        provider_count += artifact->kind == KB2_ARTIFACT_SHARED_PROVIDER;
         if (artifact->is_root) {
             if (artifact->kind != KB2_ARTIFACT_RELOCATABLE_MODULE) {
                 return KB2_STATUS_INVALID_CONFIGURATION;
             }
             ++root_count;
         }
+    }
+    if (storage->artifacts[0].native_lifecycle && provider_count != 1) {
+        return KB2_STATUS_INVALID_CONFIGURATION;
     }
     return root_count == 0 ? KB2_STATUS_INVALID_CONFIGURATION : KB2_STATUS_OK;
 }

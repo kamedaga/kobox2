@@ -28,6 +28,11 @@
 #define KB2_TEST_BOOTSTRAP_NOTIFICATION_IDS_OFFSET 128u
 #define KB2_TEST_BOOTSTRAP_RESERVED_OFFSET 144u
 
+union kb2_test_bootstrap_control {
+    struct cmsghdr alignment;
+    uint8_t bytes[CMSG_SPACE(sizeof(int) * KB2_TEST_MAX_TRANSFER_FD_COUNT)];
+};
+
 static void kb2_test_store_u32(uint8_t *destination, uint32_t value) {
     destination[0] = (uint8_t)value;
     destination[1] = (uint8_t)(value >> 8u);
@@ -96,7 +101,7 @@ int kb2_test_send_bootstrap(int socket_fd,
                             const int *file_descriptors,
                             size_t file_descriptor_count) {
     uint8_t message[KB2_TEST_BOOTSTRAP_SIZE] = {0};
-    uint8_t control[CMSG_SPACE(sizeof(int) * KB2_TEST_MAX_TRANSFER_FD_COUNT)] = {0};
+    union kb2_test_bootstrap_control control = {0};
     struct iovec vector = {
         .iov_base = message,
         .iov_len = sizeof(message),
@@ -104,7 +109,7 @@ int kb2_test_send_bootstrap(int socket_fd,
     struct msghdr header = {
         .msg_iov = &vector,
         .msg_iovlen = 1,
-        .msg_control = control,
+        .msg_control = control.bytes,
         .msg_controllen = sizeof(control),
     };
     struct cmsghdr *control_header;
@@ -170,15 +175,105 @@ int kb2_test_send_bootstrap(int socket_fd,
     return sent == (ssize_t)sizeof(message);
 }
 
-static void kb2_test_close_descriptors(int *file_descriptors, size_t count) {
-    size_t index;
+static void kb2_test_close_received_rights(struct msghdr *header) {
+    struct cmsghdr *control;
 
-    for (index = 0; index < count; ++index) {
-        if (file_descriptors[index] >= 0) {
-            close(file_descriptors[index]);
-            file_descriptors[index] = -1;
+    /* recvmsg installs descriptors even when the payload is rejected. Walk
+     * all ancillary records, including rights after an unexpected record.
+     */
+    for (control = CMSG_FIRSTHDR(header); control != NULL;
+         control = CMSG_NXTHDR(header, control)) {
+        size_t offset;
+
+        if (control->cmsg_level != SOL_SOCKET || control->cmsg_type != SCM_RIGHTS ||
+            control->cmsg_len < CMSG_LEN(0)) {
+            continue;
+        }
+        for (offset = 0; offset + sizeof(int) <= control->cmsg_len - CMSG_LEN(0);
+             offset += sizeof(int)) {
+            int descriptor;
+
+            memcpy(&descriptor, CMSG_DATA(control) + offset, sizeof(descriptor));
+            close(descriptor);
         }
     }
+}
+
+int kb2_test_send_handles(int socket_fd, const int *descriptors, size_t count) {
+    union kb2_test_bootstrap_control control = {0};
+    uint8_t marker = 0;
+    struct iovec vector = {.iov_base = &marker, .iov_len = 1};
+    struct msghdr message = {.msg_iov = &vector, .msg_iovlen = 1,
+                             .msg_control = control.bytes};
+    struct cmsghdr *rights;
+    ssize_t result;
+    size_t index;
+
+    if (socket_fd < 0 || !descriptors || !count || count > KB2_TEST_MAX_TRANSFER_FD_COUNT) {
+        return 0;
+    }
+    for (index = 0; index < count; index++) {
+        if (descriptors[index] < 0) {
+            return 0;
+        }
+    }
+    message.msg_controllen = CMSG_SPACE(count * sizeof(int));
+    rights = CMSG_FIRSTHDR(&message);
+    rights->cmsg_level = SOL_SOCKET;
+    rights->cmsg_type = SCM_RIGHTS;
+    rights->cmsg_len = CMSG_LEN(count * sizeof(int));
+    memcpy(CMSG_DATA(rights), descriptors, count * sizeof(int));
+    do {
+        result = sendmsg(socket_fd, &message, MSG_NOSIGNAL);
+    } while (result < 0 && errno == EINTR);
+    return result == 1;
+}
+
+int kb2_test_receive_handles(int socket_fd, int *descriptors, size_t capacity,
+                            size_t *count_out) {
+    union kb2_test_bootstrap_control control = {0};
+    uint8_t marker = 1;
+    struct iovec vector = {.iov_base = &marker, .iov_len = 1};
+    struct msghdr message = {.msg_iov = &vector, .msg_iovlen = 1,
+                             .msg_control = control.bytes,
+                             .msg_controllen = sizeof(control)};
+    struct cmsghdr *rights;
+    ssize_t result;
+    size_t bytes, index;
+
+    if (socket_fd < 0 || !descriptors || !count_out || !capacity ||
+        capacity > KB2_TEST_MAX_TRANSFER_FD_COUNT) {
+        return 0;
+    }
+    *count_out = 0;
+    for (index = 0; index < capacity; index++) {
+        descriptors[index] = -1;
+    }
+    if (!kb2_test_wait_readable(socket_fd, 5000)) {
+        return 0;
+    }
+    do {
+        result = recvmsg(socket_fd, &message, MSG_CMSG_CLOEXEC);
+    } while (result < 0 && errno == EINTR);
+    if (result < 0) {
+        return 0;
+    }
+    rights = CMSG_FIRSTHDR(&message);
+    if (result != 1 || marker || (message.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) ||
+        !rights || rights->cmsg_level != SOL_SOCKET || rights->cmsg_type != SCM_RIGHTS ||
+        rights->cmsg_len <= CMSG_LEN(0) || CMSG_NXTHDR(&message, rights)) {
+        goto invalid;
+    }
+    bytes = rights->cmsg_len - CMSG_LEN(0);
+    if (bytes % sizeof(int) || bytes / sizeof(int) > capacity) {
+        goto invalid;
+    }
+    memcpy(descriptors, CMSG_DATA(rights), bytes);
+    *count_out = bytes / sizeof(int);
+    return 1;
+invalid:
+    kb2_test_close_received_rights(&message);
+    return 0;
 }
 
 int kb2_test_receive_bootstrap(int socket_fd,
@@ -187,7 +282,7 @@ int kb2_test_receive_bootstrap(int socket_fd,
                                size_t file_descriptor_capacity,
                                size_t *file_descriptor_count_out) {
     uint8_t message[KB2_TEST_BOOTSTRAP_SIZE];
-    uint8_t control[CMSG_SPACE(sizeof(int) * KB2_TEST_MAX_TRANSFER_FD_COUNT)] = {0};
+    union kb2_test_bootstrap_control control = {0};
     struct iovec vector = {
         .iov_base = message,
         .iov_len = sizeof(message),
@@ -195,7 +290,7 @@ int kb2_test_receive_bootstrap(int socket_fd,
     struct msghdr header = {
         .msg_iov = &vector,
         .msg_iovlen = 1,
-        .msg_control = control,
+        .msg_control = control.bytes,
         .msg_controllen = sizeof(control),
     };
     struct cmsghdr *control_header;
@@ -228,15 +323,15 @@ int kb2_test_receive_bootstrap(int socket_fd,
     control_header = CMSG_FIRSTHDR(&header);
     if (control_header == NULL || control_header->cmsg_level != SOL_SOCKET ||
         control_header->cmsg_type != SCM_RIGHTS || control_header->cmsg_len < CMSG_LEN(0)) {
-        return 0;
+        goto invalid;
     }
     descriptor_bytes = control_header->cmsg_len - CMSG_LEN(0);
     if (descriptor_bytes % sizeof(int) != 0) {
-        return 0;
+        goto invalid;
     }
     descriptor_count = descriptor_bytes / sizeof(int);
     if (descriptor_count > file_descriptor_capacity) {
-        return 0;
+        goto invalid;
     }
     memcpy(file_descriptors_out, CMSG_DATA(control_header), descriptor_count * sizeof(int));
     *file_descriptor_count_out = descriptor_count;
@@ -296,7 +391,11 @@ int kb2_test_receive_bootstrap(int socket_fd,
     return 1;
 
 invalid:
-    kb2_test_close_descriptors(file_descriptors_out, descriptor_count);
+    kb2_test_close_received_rights(&header);
+    for (index = 0; index < file_descriptor_capacity; ++index) {
+        file_descriptors_out[index] = -1;
+    }
+    memset(bootstrap_out, 0, sizeof(*bootstrap_out));
     *file_descriptor_count_out = 0;
     return 0;
 }

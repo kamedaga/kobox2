@@ -805,6 +805,46 @@ static int test_common_command_contracts(void) {
     return 0;
 }
 
+static int test_inline_completion(void) {
+    uint8_t buffer[256], corrupted[256], data[8] = {1, 2, 3};
+    kb2_gpu_inline_completion_t source = {.session_id = 9, .status = KB2_GPU_STATUS_OK,
+        .record_schema_id = KB2_GPU_DRM_CORE_RECORD_SCALAR_U64, .data = data, .length = sizeof(data)};
+    kb2_gpu_inline_completion_t decoded, sentinel;
+    size_t size = 123;
+
+    CHECK(kb2_gpu_inline_completion_encode(buffer, 1, &size, &source) == KB2_PROTOCOL_BUFFER_TOO_SMALL);
+    CHECK(size == 123);
+    CHECK(kb2_gpu_inline_completion_encode(buffer, sizeof(buffer), &size, &source) == KB2_PROTOCOL_OK);
+    CHECK(kb2_gpu_inline_completion_decode(buffer, size, 9, &decoded) == KB2_PROTOCOL_OK);
+    CHECK(decoded.length == sizeof(data) && decoded.record_schema_id == source.record_schema_id);
+    CHECK(!memcmp(decoded.data, data, sizeof(data)));
+    memset(&sentinel, 0xa5, sizeof(sentinel));
+    for (size_t truncated = 0; truncated < size; ++truncated) {
+        decoded = sentinel;
+        CHECK(kb2_gpu_inline_completion_decode(buffer, truncated, 9, &decoded) != KB2_PROTOCOL_OK);
+        CHECK(!memcmp(&decoded, &sentinel, sizeof(decoded)));
+    }
+    CHECK(kb2_gpu_inline_completion_decode(buffer, size, 10, &decoded) == KB2_PROTOCOL_MALFORMED);
+    const size_t bad_offsets[] = {KB2_GPU_COMPLETION_HEADER_SPAN_COUNT_OFFSET,
+        KB2_GPU_COMPLETION_HEADER_ATTACHMENT_COUNT_OFFSET, KB2_GPU_COMPLETION_HEADER_RESERVED_OFFSET,
+        KB2_GPU_COMPLETION_HEADER_DETAIL_CODE_OFFSET, KB2_GPU_COMPLETION_HEADER_INLINE_OFFSET_OFFSET,
+        KB2_GPU_COMPLETION_HEADER_SIZE + KB2_GPU_ARGUMENT_DESCRIPTOR_RESERVED_OFFSET,
+        KB2_GPU_COMPLETION_HEADER_SIZE + KB2_GPU_ARGUMENT_DESCRIPTOR_VALUE_OFFSET};
+    for (size_t index = 0; index < sizeof(bad_offsets) / sizeof(bad_offsets[0]); ++index) {
+        memcpy(corrupted, buffer, size);
+        corrupted[bad_offsets[index]] ^= 1;
+        CHECK(kb2_gpu_inline_completion_decode(corrupted, size, 9, &decoded) == KB2_PROTOCOL_MALFORMED);
+    }
+    source.status = KB2_GPU_STATUS_INVALID;
+    CHECK(kb2_gpu_inline_completion_encode(buffer, sizeof(buffer), &size, &source) == KB2_PROTOCOL_MALFORMED);
+    source.length = source.record_schema_id = 0;
+    CHECK(kb2_gpu_inline_completion_encode(buffer, sizeof(buffer), &size, &source) == KB2_PROTOCOL_OK);
+    CHECK(size == KB2_GPU_COMPLETION_HEADER_SIZE);
+    CHECK(kb2_gpu_inline_completion_decode(buffer, size, 9, &decoded) == KB2_PROTOCOL_OK);
+    CHECK(decoded.status == KB2_GPU_STATUS_INVALID && !decoded.length && !decoded.data);
+    return 0;
+}
+
 int main(void) {
     CHECK(test_profile_catalogs() == 0);
     CHECK(test_virgl_vector() == 0);
@@ -812,5 +852,6 @@ int main(void) {
     CHECK(test_wire_rejection() == 0);
     CHECK(test_source_rejection() == 0);
     CHECK(test_common_command_contracts() == 0);
+    CHECK(test_inline_completion() == 0);
     return 0;
 }

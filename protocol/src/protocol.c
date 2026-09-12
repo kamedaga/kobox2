@@ -246,6 +246,13 @@ const char *kb2_protocol_schema_sha256_hex(void) {
     return KB2_PROTOCOL_SCHEMA_SHA256_HEX;
 }
 
+kb2_protocol_status_t kb2_protocol_channel_validate(const kb2_protocol_channel_t *channel,
+    const kb2_protocol_queue_t *queues, size_t queue_count,
+    const kb2_protocol_region_t *regions, size_t region_count) {
+    return kb2_validate_channel_model(channel, queues, queue_count, regions, region_count)
+        ? KB2_PROTOCOL_OK : KB2_PROTOCOL_MALFORMED;
+}
+
 kb2_protocol_status_t kb2_protocol_copy_schema_digest(uint8_t *digest_out, size_t digest_size) {
     if (digest_out == NULL || digest_size != sizeof(kb2_protocol_schema_digest)) {
         return KB2_PROTOCOL_INVALID_ARGUMENT;

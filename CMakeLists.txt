@@ -21,12 +21,24 @@ add_library(
     kobox2_protocol STATIC
     protocol/src/closure_manifest.c
     protocol/src/gpu.c
+    protocol/src/gpu_completion.c
+    protocol/src/gpu_session.c
     protocol/src/protocol.c
     protocol/src/resource_grant.c
     protocol/src/sha256.c
+    protocol/src/virtqueue.c
+    protocol/src/virtqueue_memory.c
 )
 add_library(kobox2::protocol ALIAS kobox2_protocol)
 add_dependencies(kobox2_protocol kobox2_protocol_check)
+
+if(KB2_CPU_ARCH STREQUAL "x86_64" AND CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    add_library(kobox2_protocol_x86_64 STATIC protocol/arch/x86_64/virtqueue_atomic.c)
+    add_library(kobox2::protocol_x86_64 ALIAS kobox2_protocol_x86_64)
+    target_link_libraries(kobox2_protocol_x86_64 PUBLIC kobox2::protocol)
+    target_compile_options(kobox2_protocol_x86_64 PRIVATE -Wall -Wextra -Wpedantic)
+    set_target_properties(kobox2_protocol_x86_64 PROPERTIES C_EXTENSIONS OFF)
+endif()
 
 target_compile_features(kobox2 PUBLIC c_std_11)
 target_compile_features(kobox2_protocol PUBLIC c_std_11)
@@ -85,6 +97,28 @@ if(BUILD_TESTING)
     target_link_libraries(kobox2_resource_grant_test PRIVATE kobox2::protocol)
     add_executable(kobox2_gpu_protocol_test tests/gpu_protocol_test.c)
     target_link_libraries(kobox2_gpu_protocol_test PRIVATE kobox2::protocol)
+    add_executable(kobox2_virtqueue_engine_test tests/virtqueue_engine_test.c)
+    target_link_libraries(kobox2_virtqueue_engine_test PRIVATE kobox2::protocol)
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(kobox2_virtqueue_engine_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+    if(KB2_ENABLE_SANITIZERS)
+        target_compile_options(kobox2_virtqueue_engine_test PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined)
+        target_link_options(kobox2_virtqueue_engine_test PRIVATE -fsanitize=address,undefined)
+    endif()
+    add_test(NAME kobox2.virtqueue_engine COMMAND kobox2_virtqueue_engine_test)
+    if(TARGET kobox2_protocol_x86_64 AND KB2_OS_BACKEND STREQUAL "linux")
+        add_executable(kobox2_virtqueue_process_test tests/virtqueue_process_test.c)
+        target_link_libraries(kobox2_virtqueue_process_test PRIVATE kobox2_protocol_x86_64)
+        target_compile_options(kobox2_virtqueue_process_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+        if(KB2_ENABLE_SANITIZERS)
+            target_compile_options(kobox2_protocol_x86_64 PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined)
+            target_compile_options(kobox2_virtqueue_process_test PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined)
+            target_link_options(kobox2_virtqueue_process_test PRIVATE -fsanitize=address,undefined)
+        endif()
+        add_test(NAME kobox2.virtqueue_process COMMAND kobox2_virtqueue_process_test)
+        set_tests_properties(kobox2.virtqueue_process PROPERTIES TIMEOUT 35)
+    endif()
     if(KB2_BUILD_SANDBOX AND KB2_OS_BACKEND STREQUAL "linux")
         add_library(
             kobox2_test_transport STATIC
@@ -299,7 +333,14 @@ install(FILES protocol/include/kobox2/protocol.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/closure_manifest.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/resource_grant.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/gpu.h DESTINATION include/kobox2)
+install(FILES protocol/include/kobox2/gpu_session.h DESTINATION include/kobox2)
+install(FILES protocol/include/kobox2/virtqueue.h DESTINATION include/kobox2)
+install(FILES protocol/include/kobox2/virtqueue_memory.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/sha256.h DESTINATION include/kobox2)
+if(TARGET kobox2_protocol_x86_64)
+    install(TARGETS kobox2_protocol_x86_64 ARCHIVE DESTINATION lib)
+    install(FILES protocol/include/kobox2/virtqueue_x86_64.h DESTINATION include/kobox2)
+endif()
 install(
     FILES
         protocol/generated/include/kobox2/closure_layout.h

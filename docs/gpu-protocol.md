@@ -242,6 +242,17 @@ Requests use the transport envelope generation and correlation ID.
 | `COMMAND` | one catalog command and its canonical response |
 | `CANCEL` | cancellation disposition for one cancellable correlation ID |
 
+`gpu_session.h` provides the canonical base-session codec. The envelope keeps
+the request opcode. Session completions use `completion_header` without
+argument, span or attachment descriptors; all table offsets and `inline_offset`
+equal the header size. Successful `SESSION_OPEN` puts `session_open_response`
+directly in the inline area, with the same nonzero session ID in both records.
+The base opcode selects this result structure; it is not a command-catalog
+record. Failed OPEN has session ID zero and no inline bytes. CLOSE retains the
+requested nonzero ID and has no inline bytes, including on error. Reserved and
+detail fields are zero and disposition is `COMPLETED`. Callers separately
+validate envelope generation/correlation and the requested CLOSE ID.
+
 The event queue carries two base messages:
 
 | Event | Meaning |

@@ -97,6 +97,26 @@ typedef struct kb2_gpu_command {
     uint32_t inline_length;
 } kb2_gpu_command_t;
 
+/* Inline-only synchronous command completion. This subset cannot represent
+ * attachment transfers, asynchronous submission, or command-specific detail.
+ * Decode validates framing, not the selected command's result record. The
+ * caller must bind the outer envelope's generation/correlation and validate
+ * record identity, size, reserved fields and output spans against its request.
+ * Inputs must be private immutable snapshots; decoded data borrows those bytes.
+ */
+typedef struct kb2_gpu_inline_completion {
+    uint64_t session_id;
+    uint32_t status;
+    uint32_t record_schema_id;
+    const uint8_t *data;
+    size_t length;
+} kb2_gpu_inline_completion_t;
+
+kb2_protocol_status_t kb2_gpu_inline_completion_encode(uint8_t *buffer,
+    size_t capacity, size_t *size_out, const kb2_gpu_inline_completion_t *completion);
+kb2_protocol_status_t kb2_gpu_inline_completion_decode(const uint8_t *buffer,
+    size_t size, uint64_t expected_session, kb2_gpu_inline_completion_t *completion_out);
+
 const char *kb2_gpu_schema_sha256_hex(void);
 kb2_protocol_status_t kb2_gpu_copy_schema_digest(uint8_t *digest_out,
                                                   size_t digest_size);

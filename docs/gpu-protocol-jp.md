@@ -233,6 +233,15 @@ requestはtransport envelopeのgenerationとcorrelation IDを使います。
 | `COMMAND` | catalog command一つとcanonical response |
 | `CANCEL` | cancellableなcorrelation ID一つのcancel disposition |
 
+`gpu_session.h`はcanonicalなbase session codecを提供します。envelopeはrequest opcodeを
+維持します。session completionはargument/span/attachment descriptorを持たない
+`completion_header`を使い、全table offsetと`inline_offset`はheader sizeと一致します。
+成功した`SESSION_OPEN`は`session_open_response`をinline領域へ直接置き、両recordに同じ
+非zero session IDを格納します。base opcodeが結果構造を選び、command catalogのrecordは
+使いません。OPEN失敗はsession IDがzeroでinlineなしです。CLOSEはerrorを含め要求された
+非zero IDを維持し、inlineなしです。reserved/detail fieldはzero、dispositionは`COMPLETED`
+です。呼出し側はenvelopeのgeneration/correlationと要求したCLOSE IDを別途検証します。
+
 event queueは二つのbase messageを運びます。
 
 | event | 意味 |

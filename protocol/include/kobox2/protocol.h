@@ -62,6 +62,10 @@ typedef struct kb2_protocol_message_envelope {
 } kb2_protocol_message_envelope_t;
 
 const char *kb2_protocol_schema_sha256_hex(void);
+/* Validate a privately retained decoded model without serializing it again. */
+kb2_protocol_status_t kb2_protocol_channel_validate(const kb2_protocol_channel_t *channel,
+    const kb2_protocol_queue_t *queues, size_t queue_count,
+    const kb2_protocol_region_t *regions, size_t region_count);
 kb2_protocol_status_t kb2_protocol_copy_schema_digest(uint8_t *digest_out, size_t digest_size);
 
 kb2_protocol_status_t kb2_protocol_channel_encoded_size(size_t queue_count,

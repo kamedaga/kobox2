@@ -10,12 +10,14 @@
   "uapi_headers": ["drm/drm.h"],
   "constants": {
     "set_id": 1,
-    "command_count": 26,
+    "command_count": 28,
     "record_count": 33,
     "max_text_bytes": 4096,
     "max_client_name_bytes": 64,
     "max_syncobjs": 65536,
     "max_stats": 15,
+    "max_event_bytes": 512,
+    "poll_readable": 1,
     "command_version": 1,
     "command_get_unique": 2,
     "command_get_client": 3,
@@ -41,7 +43,9 @@
     "command_syncobj_query": 23,
     "command_syncobj_transfer": 24,
     "command_syncobj_timeline_signal": 25,
-    "command_syncobj_event_arm": 26
+    "command_syncobj_event_arm": 26,
+    "command_poll_events": 27,
+    "command_read_events": 28
   },
   "records": [
     { "id": 101, "name": "byte", "fields": [
@@ -312,7 +316,15 @@
         "request": { "inline_record": "syncobj_event_arm_request", "spans": [], "attachments": [
           { "argument_id": 2, "role": 1, "name": "event", "class": "event", "ownership": "share", "optional": false }
         ] },
-        "completion": { "inline_record": null, "spans": [], "attachments": [] } }
+        "completion": { "inline_record": null, "spans": [], "attachments": [] } },
+      { "id": 27, "name": "poll_events", "uapi_operation": "poll", "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "scalar_u32", "spans": [], "attachments": [] },
+        "completion": { "inline_record": "scalar_u32", "spans": [], "attachments": [] } },
+      { "id": 28, "name": "read_events", "uapi_operation": "read", "cancellation": "before-dispatch", "deadline": "forbidden",
+        "request": { "inline_record": "length_request", "spans": [
+          { "argument_id": 2, "role": 1, "name": "events", "direction": "output", "records": ["byte"], "minimum": 1, "maximum": 512 }
+        ], "attachments": [] },
+        "completion": { "inline_record": "length_result", "spans": [], "attachments": [] } }
     ]
   },
   "structures": {}

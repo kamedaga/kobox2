@@ -112,10 +112,55 @@ typedef struct kb2_gpu_inline_completion {
     size_t length;
 } kb2_gpu_inline_completion_t;
 
+/* Synchronous completion carrying one native object out-of-band. */
+typedef struct kb2_gpu_attachment_completion {
+    uint64_t session_id;
+    uint32_t status;
+    uint32_t argument_id;
+    kb2_gpu_attachment_t attachment;
+} kb2_gpu_attachment_completion_t;
+
+/* Exact completion for DRM_VIRTGPU_MAP.  The descriptor is the canonical
+ * memory attachment; the native capability identified by exchange_id travels
+ * out-of-band and is validated by the transport owner. */
+typedef struct kb2_gpu_virtgpu_map_completion {
+    uint64_t session_id;
+    uint32_t status;
+    uint64_t mapping_id;
+    uint64_t length;
+    uint32_t cache_policy;
+    uint64_t exchange_id;
+    uint64_t generation;
+    uint64_t rights;
+} kb2_gpu_virtgpu_map_completion_t;
+
+/* MODE_MAP_DUMB carries the same mapping values as VIRTGPU_MAP, but uses the
+ * mode command set's record identity.  Keep separate codecs so a completion
+ * cannot be accepted for the wrong command merely because its fields match. */
+typedef kb2_gpu_virtgpu_map_completion_t kb2_gpu_mode_map_completion_t;
+
 kb2_protocol_status_t kb2_gpu_inline_completion_encode(uint8_t *buffer,
     size_t capacity, size_t *size_out, const kb2_gpu_inline_completion_t *completion);
 kb2_protocol_status_t kb2_gpu_inline_completion_decode(const uint8_t *buffer,
     size_t size, uint64_t expected_session, kb2_gpu_inline_completion_t *completion_out);
+kb2_protocol_status_t kb2_gpu_attachment_completion_encode(uint8_t *buffer,
+    size_t capacity, size_t *size_out,
+    const kb2_gpu_attachment_completion_t *completion);
+kb2_protocol_status_t kb2_gpu_attachment_completion_decode(const uint8_t *buffer,
+    size_t size, uint64_t expected_session, uint64_t expected_generation,
+    kb2_gpu_attachment_completion_t *completion_out);
+kb2_protocol_status_t kb2_gpu_virtgpu_map_completion_encode(uint8_t *buffer,
+    size_t capacity, size_t *size_out,
+    const kb2_gpu_virtgpu_map_completion_t *completion);
+kb2_protocol_status_t kb2_gpu_virtgpu_map_completion_decode(const uint8_t *buffer,
+    size_t size, uint64_t expected_session, uint64_t expected_generation,
+    kb2_gpu_virtgpu_map_completion_t *completion_out);
+kb2_protocol_status_t kb2_gpu_mode_map_completion_encode(uint8_t *buffer,
+    size_t capacity, size_t *size_out,
+    const kb2_gpu_mode_map_completion_t *completion);
+kb2_protocol_status_t kb2_gpu_mode_map_completion_decode(const uint8_t *buffer,
+    size_t size, uint64_t expected_session, uint64_t expected_generation,
+    kb2_gpu_mode_map_completion_t *completion_out);
 
 const char *kb2_gpu_schema_sha256_hex(void);
 kb2_protocol_status_t kb2_gpu_copy_schema_digest(uint8_t *digest_out,

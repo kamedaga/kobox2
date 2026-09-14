@@ -871,9 +871,12 @@ static int core_request_semantics_valid(const kb2_gpu_command_source_t *source) 
                    span_element_count(source, 4) &&
                load_u32(data + KB2_GPU_DRM_CORE_RECORD_VERSION_REQUEST_RESERVED_OFFSET) == 0;
     case KB2_GPU_DRM_CORE_COMMAND_GET_UNIQUE:
+    case KB2_GPU_DRM_CORE_COMMAND_READ_EVENTS:
         return load_u32(data + KB2_GPU_DRM_CORE_RECORD_LENGTH_REQUEST_CAPACITY_OFFSET) ==
                    span_element_count(source, 2) &&
                load_u32(data + KB2_GPU_DRM_CORE_RECORD_LENGTH_REQUEST_RESERVED_OFFSET) == 0;
+    case KB2_GPU_DRM_CORE_COMMAND_POLL_EVENTS:
+        return (load_u32(data) & ~KB2_GPU_DRM_CORE_POLL_READABLE) == 0;
     case KB2_GPU_DRM_CORE_COMMAND_GET_CLIENT:
         return load_u32(data + KB2_GPU_DRM_CORE_RECORD_CLIENT_REQUEST_RESERVED_OFFSET) == 0;
     case KB2_GPU_DRM_CORE_COMMAND_SET_CLIENT_NAME:

@@ -258,6 +258,7 @@ def validate_command_contracts(schema, record_by_name):
                         for command in commands)
     uapi_commands = set()
     uapi_numbers = set()
+    uapi_operations = set()
 
     if not has_contracts:
         if record_by_name or schema.get("info_queries"):
@@ -270,15 +271,21 @@ def validate_command_contracts(schema, record_by_name):
         name = command["name"]
         uapi_command = command.get("uapi_command")
         uapi_number = command.get("uapi_number")
+        uapi_operation = command.get("uapi_operation")
         deadline = command.get("deadline")
 
-        if (not isinstance(uapi_command, str) or
-                not re.fullmatch(r"DRM_IOCTL_[A-Z0-9_]+", uapi_command) or
-                uapi_command in uapi_commands):
-            raise ValueError(f"invalid UAPI command: {name}")
-        if (not isinstance(uapi_number, int) or uapi_number < 0 or
-                uapi_number in uapi_numbers):
-            raise ValueError(f"invalid UAPI command number: {name}")
+        if uapi_operation is None:
+            if (not isinstance(uapi_command, str) or
+                    not re.fullmatch(r"DRM_IOCTL_[A-Z0-9_]+", uapi_command) or
+                    uapi_command in uapi_commands):
+                raise ValueError(f"invalid UAPI command: {name}")
+            if (not isinstance(uapi_number, int) or uapi_number < 0 or
+                    uapi_number in uapi_numbers):
+                raise ValueError(f"invalid UAPI command number: {name}")
+        elif (uapi_command is not None or uapi_number is not None or
+              uapi_operation not in ("poll", "read") or
+              uapi_operation in uapi_operations):
+            raise ValueError(f"invalid UAPI operation: {name}")
         if ((command["cancellation"] == "wait" and deadline != "required") or
                 (command["cancellation"] != "wait" and deadline != "forbidden")):
             raise ValueError(f"invalid deadline policy: {name}")
@@ -290,8 +297,11 @@ def validate_command_contracts(schema, record_by_name):
                                record_by_name,
                                inline_argument_id,
                                f"{name}.completion")
-        uapi_commands.add(uapi_command)
-        uapi_numbers.add(uapi_number)
+        if uapi_operation is None:
+            uapi_commands.add(uapi_command)
+            uapi_numbers.add(uapi_number)
+        else:
+            uapi_operations.add(uapi_operation)
 
 
 def validate_info_queries(schema, record_by_name):
@@ -1059,9 +1069,10 @@ def render(schema, prefix, guard):
         lines.append("")
         for command in command_set["commands"]:
             command_prefix = f"{prefix}_COMMAND_{identifier(command['name'])}"
-            lines.append(
-                f"#define {command_prefix}_UAPI_NUMBER {command['uapi_number']}u"
-            )
+            if "uapi_number" in command:
+                lines.append(
+                    f"#define {command_prefix}_UAPI_NUMBER {command['uapi_number']}u"
+                )
             lines.append(
                 f"#define {command_prefix}_INLINE_ARGUMENT_ID {inline_argument_id}u"
             )

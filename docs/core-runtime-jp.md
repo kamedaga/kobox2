@@ -1,5 +1,10 @@
 # Core runtime
 
+この文書は`protocol/schema/core_runtime.json`に残る、現在選択されていない`dev`
+operation catalogを説明します。旧`kobox/provider/core_lifecycle.c`実装と単独closure
+fixtureは整理済みです。現在のboot-rooted sandboxはupstream Linuxのメモリ、task、同期、
+timer、workqueue、RCUを使います。このcatalogは製品用providerの説明ではありません。
+
 ## identity
 
 core runtimeは一つの`dev` ABI familyです。identityと全operation catalogは

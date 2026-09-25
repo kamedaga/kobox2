@@ -1,5 +1,11 @@
 # Core runtime
 
+This document describes the unselected `dev` operation catalog retained in
+`protocol/schema/core_runtime.json`. The former `kobox/provider/core_lifecycle.c`
+implementation and its standalone closure fixture have been retired. The
+current boot-rooted sandbox uses upstream Linux memory, tasks, synchronization,
+timers, workqueues, and RCU; this catalog does not describe a production provider.
+
 ## Identity
 
 The core runtime is one `dev` ABI family. Its identity and complete operation

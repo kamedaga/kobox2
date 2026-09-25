@@ -323,7 +323,7 @@ static int test_profile_catalogs(void) {
     CHECK(virgl[0].set_id == KB2_GPU_DRM_CORE_SET_ID);
     CHECK(virgl[1].set_id == KB2_GPU_DRM_MODE_SET_ID);
     CHECK(virgl[2].set_id == KB2_GPU_DRM_VIRTGPU_SET_ID);
-    CHECK(virgl[0].command_count == 26);
+    CHECK(virgl[0].command_count == 28);
     CHECK(virgl[1].command_count == 44);
     CHECK(amdgpu[0].set_id == virgl[0].set_id);
     CHECK(amdgpu[1].set_id == virgl[1].set_id);

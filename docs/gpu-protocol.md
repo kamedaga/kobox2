@@ -381,6 +381,15 @@ discards old completions and reports device loss to every old client session.
 
 ## Required limits
 
+The implemented AMDGPU render bridge admits schema-typed CS chunks (including
+multiple IBs, BO handles, binary/timeline sync objects, user fences, dependencies
+and GFX shadow data). Its private plan bounds each span and cumulative payload;
+only Linux-owned snapshots form the native ioctl pointer graph. INFO admission
+and completion share query-specific record/count/selector shapes. MAX_IBS is an
+array, not one scalar. GEM_WAIT_IDLE permits a zero deadline as a nonblocking
+poll; other wait commands retain their deadline requirements. Catalog support
+does not imply that every corresponding host-facing ioctl is implemented.
+
 Every profile fixes limits for sessions, in-flight requests, execution lanes,
 inline bytes, spans, attachments, command bytes, objects per session, total GPU
 memory, pinned memory, mappings, contexts, sync objects, KMS objects, event

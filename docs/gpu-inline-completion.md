@@ -27,3 +27,19 @@ unchanged. The API allocates nothing and retains no state.
 `kobox2.gpu_protocol` tests normal/error completions, truncation, stale session,
 descriptor corruption, unsupported response content and unchanged decode
 outputs. Host integrations additionally test command-specific result validation.
+# Device-backed CPU mappings
+
+Mapping completions use cache policy `0` (WB), `1` (WC), or `2` (UC).
+The out-of-band memory capability owns the cache policy; this field does not
+authorize clients to select another memory type. Private Linux mapping results
+distinguish sandbox RAM page indices from device physical pages. Device pages
+must be checked against the host's PCI grant before creating an immutable,
+shared, non-executable memory capability. Physical page numbers never appear
+in the client protocol. Revoke and cache retirement precede BO unpin.
+
+The AMDGPU provider supports resident CPU-visible VRAM via the driver's
+`io_mem_pfn` resolver, not a presumed contiguous VRAM range. It pins the BO
+through the mapping lease and waits for moves before publication. Invisible
+VRAM and WC RAM with outstanding WB aliases remain explicit unsupported cases;
+neither is silently redirected to cached RAM. PRIME currently accepts WB RAM
+only and rejects device backing before attachment publication.

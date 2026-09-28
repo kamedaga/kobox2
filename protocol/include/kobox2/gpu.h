@@ -120,6 +120,10 @@ typedef struct kb2_gpu_attachment_completion {
     kb2_gpu_attachment_t attachment;
 } kb2_gpu_attachment_completion_t;
 
+#define KB2_GPU_MAPPING_CACHE_WB UINT32_C(0)
+#define KB2_GPU_MAPPING_CACHE_WC UINT32_C(1)
+#define KB2_GPU_MAPPING_CACHE_UC UINT32_C(2)
+
 /* Exact completion for DRM_VIRTGPU_MAP.  The descriptor is the canonical
  * memory attachment; the native capability identified by exchange_id travels
  * out-of-band and is validated by the transport owner. */
@@ -138,6 +142,7 @@ typedef struct kb2_gpu_virtgpu_map_completion {
  * mode command set's record identity.  Keep separate codecs so a completion
  * cannot be accepted for the wrong command merely because its fields match. */
 typedef kb2_gpu_virtgpu_map_completion_t kb2_gpu_mode_map_completion_t;
+typedef kb2_gpu_virtgpu_map_completion_t kb2_gpu_amdgpu_map_completion_t;
 
 kb2_protocol_status_t kb2_gpu_inline_completion_encode(uint8_t *buffer,
     size_t capacity, size_t *size_out, const kb2_gpu_inline_completion_t *completion);
@@ -161,6 +166,12 @@ kb2_protocol_status_t kb2_gpu_mode_map_completion_encode(uint8_t *buffer,
 kb2_protocol_status_t kb2_gpu_mode_map_completion_decode(const uint8_t *buffer,
     size_t size, uint64_t expected_session, uint64_t expected_generation,
     kb2_gpu_mode_map_completion_t *completion_out);
+kb2_protocol_status_t kb2_gpu_amdgpu_map_completion_encode(uint8_t *buffer,
+    size_t capacity, size_t *size_out,
+    const kb2_gpu_amdgpu_map_completion_t *completion);
+kb2_protocol_status_t kb2_gpu_amdgpu_map_completion_decode(const uint8_t *buffer,
+    size_t size, uint64_t expected_session, uint64_t expected_generation,
+    kb2_gpu_amdgpu_map_completion_t *completion_out);
 
 const char *kb2_gpu_schema_sha256_hex(void);
 kb2_protocol_status_t kb2_gpu_copy_schema_digest(uint8_t *digest_out,

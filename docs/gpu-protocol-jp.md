@@ -355,6 +355,14 @@ fault cleanupはprocessをterminateし、同じrevoke、reset、reap、release�
 
 ## 必須limit
 
+AMDGPU render bridgeはschemaの型付きCS chunk（複数IB、BO handle、binary/
+timeline syncobj、user fence、dependency、GFX shadow）を受け付ける。
+private planでspanと累積payloadを検査し、native ioctlのpointer graphは
+Linux所有のsnapshotからのみ構成する。INFOの受付と完了はquery別の
+record/count/selector定義を共有する。MAX_IBSは単一scalarではなく配列。
+GEM_WAIT_IDLEのみdeadline=0をnonblocking pollとして認め、他のwaitの
+deadline要件は維持する。catalogの対応は対応する全host ioctlの実装を意味しない。
+
 各profileはsession、in-flight request、execution lane、inline byte、span、attachment、command byte、
 sessionごとのobject、総GPU memory、pinned memory、mapping、context、sync object、KMS object、
 event backlog、wait durationのlimitを固定します。ownership transferやDRM副作用より前にlimitを

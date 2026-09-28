@@ -1616,7 +1616,11 @@ static kb2_protocol_status_t validate_source(const kb2_gpu_command_source_t *sou
                          source->command_set_id,
                          source->command_id) ||
         (wait_command(source->command_set_id, source->command_id) !=
-         (source->deadline_ns != 0)) ||
+         (source->deadline_ns != 0) &&
+         /* GEM_WAIT_IDLE uses zero as a nonblocking poll, not an absent deadline. */
+         !(source->command_set_id == KB2_GPU_DRM_AMDGPU_SET_ID &&
+           source->command_id == KB2_GPU_DRM_AMDGPU_COMMAND_GEM_WAIT_IDLE &&
+           source->deadline_ns == 0)) ||
         !regions_valid(source->regions, source->region_count) ||
         !spans_valid(source->spans,
                      source->span_count,

@@ -26,6 +26,9 @@ restartはclosureをquiesceし、process終了を確認してからrevoke、rese
 
 - launch descriptionは検証済みの不変なclosure、profile/channel digest、resource limitを
   持ちます。reset flagはclosureのresource policyから導出します。
+  channel数とqueue数は独立したbudgetであり、一定の比率を仮定しません。management IPCは
+  split-ring queueを持たず、request-only channelは1本、request/event channelは2本を
+  使います。具体的なschema bindingとresource allocationが対応するbudgetを検証します。
 - eventはaction完了、sandbox handshake、process終了、protocol fault、hostからのstop/restart
   requestを通知します。
 - actionはtype、generation、token、上限付きargumentを持ちます。native handleはhost adapterが

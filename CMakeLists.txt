@@ -19,6 +19,8 @@ add_library(kobox2 STATIC src/closure.c src/controller/controller.c)
 add_library(kobox2::kobox2 ALIAS kobox2)
 add_library(
     kobox2_protocol STATIC
+    protocol/src/block_device.c
+    protocol/src/filesystem.c
     protocol/src/closure_manifest.c
     protocol/src/gpu.c
     protocol/src/gpu_completion.c
@@ -93,6 +95,17 @@ if(BUILD_TESTING)
     target_link_libraries(kobox2_closure_test PRIVATE kobox2::kobox2 kobox2::protocol)
     add_executable(kobox2_protocol_test tests/protocol_test.c)
     target_link_libraries(kobox2_protocol_test PRIVATE kobox2::protocol)
+    add_executable(kobox2_block_device_test tests/block_device_test.c)
+    target_link_libraries(kobox2_block_device_test PRIVATE kobox2::protocol)
+    add_executable(kobox2_filesystem_test tests/filesystem_test.c)
+    target_link_libraries(kobox2_filesystem_test PRIVATE kobox2::protocol)
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+        target_compile_options(kobox2_filesystem_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    endif()
+    if(KB2_ENABLE_SANITIZERS)
+        target_compile_options(kobox2_filesystem_test PRIVATE -fno-omit-frame-pointer -fsanitize=address,undefined)
+        target_link_options(kobox2_filesystem_test PRIVATE -fsanitize=address,undefined)
+    endif()
     add_executable(kobox2_resource_grant_test tests/resource_grant_test.c)
     target_link_libraries(kobox2_resource_grant_test PRIVATE kobox2::protocol)
     add_executable(kobox2_gpu_protocol_test tests/gpu_protocol_test.c)
@@ -188,6 +201,7 @@ if(BUILD_TESTING)
         target_compile_options(kobox2_closure_test PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(kobox2_test_closure PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(kobox2_protocol_test PRIVATE -Wall -Wextra -Wpedantic)
+        target_compile_options(kobox2_block_device_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
         target_compile_options(kobox2_resource_grant_test PRIVATE -Wall -Wextra -Wpedantic)
         target_compile_options(kobox2_gpu_protocol_test PRIVATE -Wall -Wextra -Wpedantic)
         if(KB2_BUILD_SANDBOX AND KB2_OS_BACKEND STREQUAL "linux")
@@ -207,6 +221,7 @@ if(BUILD_TESTING)
         target_compile_options(kobox2_closure_test PRIVATE /W4)
         target_compile_options(kobox2_test_closure PRIVATE /W4)
         target_compile_options(kobox2_protocol_test PRIVATE /W4)
+        target_compile_options(kobox2_block_device_test PRIVATE /W4)
         target_compile_options(kobox2_resource_grant_test PRIVATE /W4)
         target_compile_options(kobox2_gpu_protocol_test PRIVATE /W4)
     endif()
@@ -290,6 +305,8 @@ if(BUILD_TESTING)
     add_test(NAME kobox2.controller COMMAND kobox2_controller_test)
     add_test(NAME kobox2.closure COMMAND kobox2_closure_test)
     add_test(NAME kobox2.protocol COMMAND kobox2_protocol_test)
+    add_test(NAME kobox2.block_device COMMAND kobox2_block_device_test)
+    add_test(NAME kobox2.filesystem COMMAND kobox2_filesystem_test)
     add_test(NAME kobox2.resource_grant COMMAND kobox2_resource_grant_test)
     add_test(NAME kobox2.gpu_protocol COMMAND kobox2_gpu_protocol_test)
     if(KB2_BUILD_SANDBOX AND KB2_OS_BACKEND STREQUAL "linux")
@@ -330,6 +347,8 @@ install(
 install(FILES include/kobox2/controller.h DESTINATION include/kobox2)
 install(FILES include/kobox2/closure.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/protocol.h DESTINATION include/kobox2)
+install(FILES protocol/include/kobox2/block_device.h DESTINATION include/kobox2)
+install(FILES protocol/include/kobox2/filesystem.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/closure_manifest.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/resource_grant.h DESTINATION include/kobox2)
 install(FILES protocol/include/kobox2/gpu.h DESTINATION include/kobox2)
@@ -344,6 +363,8 @@ if(TARGET kobox2_protocol_x86_64)
 endif()
 install(
     FILES
+        protocol/generated/include/kobox2/block_device_layout.h
+        protocol/generated/include/kobox2/filesystem_layout.h
         protocol/generated/include/kobox2/closure_layout.h
         protocol/generated/include/kobox2/gpu_layout.h
         protocol/generated/include/kobox2/gpu_drm_core_layout.h

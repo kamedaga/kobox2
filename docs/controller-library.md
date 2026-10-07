@@ -29,6 +29,10 @@ another generation are rejected.
 - A launch description contains an immutable validated closure, profile and
   channel digests, and resource limits. Reset flags are derived from closure
   resource policy.
+  Channel and queue counts are independent budgets, not an assumed ratio:
+  management IPC has no split-ring queue, request-only channels need one,
+  and request/event channels need two. Concrete schema binding and resource
+  allocation enforce the applicable budgets.
 - Events report action completion, sandbox handshake, process exit, protocol
   fault, and host stop or restart requests.
 - Actions identify their type, generation, token, and bounded arguments. Native

@@ -6,9 +6,10 @@
   "digest_algorithm": "sha256",
   "digest_canonicalization": "RFC8785",
   "constants": {
+    "min_queues": 1,
     "max_queues": 1024,
     "max_regions": 1024,
-    "queue_size_min": 16,
+    "queue_size_min": 1,
     "queue_size_max": 32768,
     "transport_feature_indirect_desc": 268435456,
     "transport_feature_event_idx": 536870912,
@@ -17,6 +18,8 @@
     "channel_flag_data": 2,
     "queue_role_event": 1,
     "queue_role_request": 2,
+    "channel_request_queues_min": 1,
+    "channel_event_queues_max": 1,
     "native_handle_role_memory": 0,
     "region_right_read": 1,
     "region_right_write": 2

@@ -1,0 +1,283 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.filesystem",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "constants": {
+    "protocol_id": 1179844608,
+    "credential_cap_valid_mask": 2199023255551,
+    "right_lookup": 1,
+    "right_read": 2,
+    "right_write": 4,
+    "right_exec": 8,
+    "right_stat": 16,
+    "right_setattr": 32,
+    "right_getdents": 64,
+    "right_create": 128,
+    "right_remove": 256,
+    "right_rename": 512,
+    "rights_valid_mask": 1023,
+    "op_hello": 1,
+    "op_client_register": 2,
+    "op_client_credentials": 3,
+    "op_client_unregister": 4,
+    "op_session_attach": 5,
+    "op_session_detach": 6,
+    "op_service_bind": 7,
+    "op_device_route": 8,
+    "op_exec_open": 9,
+    "op_exec_path": 10,
+    "op_exec_self": 11,
+    "op_file_vmo": 12,
+    "op_shared_file_vmo": 13,
+    "op_openat2": 14,
+    "op_close": 15,
+    "op_dup": 16,
+    "op_transfer_dup": 17,
+    "op_read": 18,
+    "op_pread": 19,
+    "op_write": 20,
+    "op_pwrite": 21,
+    "op_lseek": 22,
+    "op_getdents64": 23,
+    "op_statx": 24,
+    "op_statfs": 25,
+    "op_fcntl": 26,
+    "op_fsync": 27,
+    "op_ftruncate": 28,
+    "op_mkdirat": 29,
+    "op_unlinkat": 30,
+    "op_renameat2": 31,
+    "op_linkat": 32,
+    "op_symlinkat": 33,
+    "op_readlinkat": 34,
+    "op_readlink_handle": 35,
+    "op_mknodat": 36,
+    "op_fchmodat": 37,
+    "op_fchownat": 38,
+    "op_utimensat": 39,
+    "op_faccessat2": 40,
+    "op_sync": 41,
+    "op_syncfs": 42,
+    "op_memfd_create": 43,
+    "operation_count": 43
+  },
+  "structures": {
+    "channel_profile": {
+      "size": 32,
+      "fields": [
+        {"name": "schema_digest", "type": "u8[32]", "offset": 0}
+      ]
+    },
+    "queue_config": {
+      "size": 32,
+      "fields": [
+        {"name": "generation", "type": "u64", "offset": 0},
+        {"name": "channel_id", "type": "u64", "offset": 8},
+        {"name": "arena_bytes", "type": "u64", "offset": 16},
+        {"name": "queue_size", "type": "u32", "offset": 24},
+        {"name": "reserved", "type": "u32", "offset": 28}
+      ]
+    },
+    "credentials": {
+      "size": 80,
+      "fields": [
+        {"name": "uid", "type": "u32", "offset": 0},
+        {"name": "gid", "type": "u32", "offset": 4},
+        {"name": "euid", "type": "u32", "offset": 8},
+        {"name": "egid", "type": "u32", "offset": 12},
+        {"name": "suid", "type": "u32", "offset": 16},
+        {"name": "sgid", "type": "u32", "offset": 20},
+        {"name": "fsuid", "type": "u32", "offset": 24},
+        {"name": "fsgid", "type": "u32", "offset": 28},
+        {"name": "cap_permitted", "type": "u64", "offset": 32},
+        {"name": "cap_effective", "type": "u64", "offset": 40},
+        {"name": "cap_inheritable", "type": "u64", "offset": 48},
+        {"name": "cap_ambient", "type": "u64", "offset": 56},
+        {"name": "securebits", "type": "u32", "offset": 64},
+        {"name": "umask", "type": "u32", "offset": 68},
+        {"name": "reserved", "type": "u8[8]", "offset": 72}
+      ]
+    },
+    "exec_payload": {
+      "size": 128,
+      "fields": [
+        {"name": "flags", "type": "u64", "offset": 0},
+        {"name": "argc", "type": "u64", "offset": 8},
+        {"name": "envc", "type": "u64", "offset": 16},
+        {"name": "inherit_fd_count", "type": "u64", "offset": 24},
+        {"name": "inherit_handle_count", "type": "u64", "offset": 32},
+        {"name": "fd_patch_count", "type": "u64", "offset": 40},
+        {"name": "argv_offset", "type": "u64", "offset": 48},
+        {"name": "argv_length", "type": "u64", "offset": 56},
+        {"name": "envp_offset", "type": "u64", "offset": 64},
+        {"name": "envp_length", "type": "u64", "offset": 72},
+        {"name": "grants_offset", "type": "u64", "offset": 80},
+        {"name": "grants_length", "type": "u64", "offset": 88},
+        {"name": "handles_offset", "type": "u64", "offset": 96},
+        {"name": "handles_length", "type": "u64", "offset": 104},
+        {"name": "patches_offset", "type": "u64", "offset": 112},
+        {"name": "patches_length", "type": "u64", "offset": 120}
+      ]
+    },
+    "exec_string": {
+      "size": 16,
+      "fields": [
+        {"name": "offset", "type": "u64", "offset": 0},
+        {"name": "length", "type": "u64", "offset": 8}
+      ]
+    },
+    "exec_grant": {
+      "size": 24,
+      "fields": [
+        {"name": "target", "type": "u64", "offset": 0},
+        {"name": "rights", "type": "u64", "offset": 8},
+        {"name": "flags", "type": "u64", "offset": 16}
+      ]
+    },
+    "exec_patch": {
+      "size": 32,
+      "fields": [
+        {"name": "kind", "type": "u64", "offset": 0},
+        {"name": "index", "type": "u64", "offset": 8},
+        {"name": "offset", "type": "u64", "offset": 16},
+        {"name": "reserved", "type": "u64", "offset": 24}
+      ]
+    },
+    "request": {
+      "size": 192,
+      "fields": [
+        {"name": "abi_identity", "type": "u8[4]", "offset": 0},
+        {"name": "opcode", "type": "u32", "offset": 4},
+        {"name": "generation", "type": "u64", "offset": 8},
+        {"name": "sequence", "type": "u64", "offset": 16},
+        {"name": "client", "type": "u64", "offset": 24},
+        {"name": "credential_generation", "type": "u64", "offset": 32},
+        {"name": "handle", "type": "u64", "offset": 40},
+        {"name": "second_handle", "type": "u64", "offset": 48},
+        {"name": "offset", "type": "i64", "offset": 56},
+        {"name": "length", "type": "u64", "offset": 64},
+        {"name": "flags", "type": "u64", "offset": 72},
+        {"name": "mode", "type": "u64", "offset": 80},
+        {"name": "resolve", "type": "u64", "offset": 88},
+        {"name": "mask", "type": "u32", "offset": 96},
+        {"name": "uid", "type": "u32", "offset": 100},
+        {"name": "gid", "type": "u32", "offset": 104},
+        {"name": "umask", "type": "u32", "offset": 108},
+        {"name": "path_offset", "type": "u64", "offset": 112},
+        {"name": "path_length", "type": "u64", "offset": 120},
+        {"name": "second_path_offset", "type": "u64", "offset": 128},
+        {"name": "second_path_length", "type": "u64", "offset": 136},
+        {"name": "groups_offset", "type": "u64", "offset": 144},
+        {"name": "groups_length", "type": "u64", "offset": 152},
+        {"name": "data_offset", "type": "u64", "offset": 160},
+        {"name": "data_length", "type": "u64", "offset": 168},
+        {"name": "capabilities", "type": "u64", "offset": 176},
+        {"name": "reserved", "type": "u64", "offset": 184}
+      ]
+    },
+    "statx_timestamp": {
+      "size": 16,
+      "fields": [
+        {"name": "seconds", "type": "i64", "offset": 0},
+        {"name": "nanoseconds", "type": "u32", "offset": 8},
+        {"name": "reserved", "type": "u32", "offset": 12}
+      ]
+    },
+    "statx": {
+      "size": 256,
+      "fields": [
+        {"name": "mask", "type": "u32", "offset": 0},
+        {"name": "blksize", "type": "u32", "offset": 4},
+        {"name": "attributes", "type": "u64", "offset": 8},
+        {"name": "nlink", "type": "u32", "offset": 16},
+        {"name": "uid", "type": "u32", "offset": 20},
+        {"name": "gid", "type": "u32", "offset": 24},
+        {"name": "mode", "type": "u16", "offset": 28},
+        {"name": "reserved_mode", "type": "u16", "offset": 30},
+        {"name": "ino", "type": "u64", "offset": 32},
+        {"name": "size", "type": "u64", "offset": 40},
+        {"name": "blocks", "type": "u64", "offset": 48},
+        {"name": "attributes_mask", "type": "u64", "offset": 56},
+        {"name": "atime", "type": "u8[16]", "offset": 64},
+        {"name": "btime", "type": "u8[16]", "offset": 80},
+        {"name": "ctime", "type": "u8[16]", "offset": 96},
+        {"name": "mtime", "type": "u8[16]", "offset": 112},
+        {"name": "rdev_major", "type": "u32", "offset": 128},
+        {"name": "rdev_minor", "type": "u32", "offset": 132},
+        {"name": "dev_major", "type": "u32", "offset": 136},
+        {"name": "dev_minor", "type": "u32", "offset": 140},
+        {"name": "mnt_id", "type": "u64", "offset": 144},
+        {"name": "dio_mem_align", "type": "u32", "offset": 152},
+        {"name": "dio_offset_align", "type": "u32", "offset": 156},
+        {"name": "subvol", "type": "u64", "offset": 160},
+        {"name": "atomic_write_unit_min", "type": "u32", "offset": 168},
+        {"name": "atomic_write_unit_max", "type": "u32", "offset": 172},
+        {"name": "atomic_write_segments_max", "type": "u32", "offset": 176},
+        {"name": "dio_read_offset_align", "type": "u32", "offset": 180},
+        {"name": "atomic_write_unit_max_opt", "type": "u32", "offset": 184},
+        {"name": "reserved_atomic", "type": "u32", "offset": 188},
+        {"name": "reserved", "type": "u8[64]", "offset": 192}
+      ]
+    },
+    "statfs": {
+      "size": 120,
+      "fields": [
+        {"name": "type", "type": "i64", "offset": 0},
+        {"name": "bsize", "type": "i64", "offset": 8},
+        {"name": "blocks", "type": "u64", "offset": 16},
+        {"name": "bfree", "type": "u64", "offset": 24},
+        {"name": "bavail", "type": "u64", "offset": 32},
+        {"name": "files", "type": "u64", "offset": 40},
+        {"name": "ffree", "type": "u64", "offset": 48},
+        {"name": "fsid", "type": "u32[2]", "offset": 56},
+        {"name": "namelen", "type": "i64", "offset": 64},
+        {"name": "frsize", "type": "i64", "offset": 72},
+        {"name": "flags", "type": "i64", "offset": 80},
+        {"name": "reserved", "type": "u8[32]", "offset": 88}
+      ]
+    },
+    "times": {
+      "size": 32,
+      "fields": [
+        {"name": "atime_seconds", "type": "i64", "offset": 0},
+        {"name": "atime_nanoseconds", "type": "i64", "offset": 8},
+        {"name": "mtime_seconds", "type": "i64", "offset": 16},
+        {"name": "mtime_nanoseconds", "type": "i64", "offset": 24}
+      ]
+    },
+    "response": {
+      "size": 64,
+      "fields": [
+        {"name": "abi_identity", "type": "u8[4]", "offset": 0},
+        {"name": "opcode", "type": "u32", "offset": 4},
+        {"name": "generation", "type": "u64", "offset": 8},
+        {"name": "sequence", "type": "u64", "offset": 16},
+        {"name": "result", "type": "i64", "offset": 24},
+        {"name": "handle", "type": "u64", "offset": 32},
+        {"name": "data_length", "type": "u64", "offset": 40},
+        {"name": "service", "type": "u32", "offset": 48},
+        {"name": "reserved", "type": "u8[12]", "offset": 52}
+      ]
+    }
+  },
+  "semantics": {
+    "status": "unnumbered dev, no legacy filed compatibility",
+    "transport": "kb2_vq readable request and writable response descriptor chains; capacities are negotiated, not filesystem limits",
+    "spans": "offsets from the start of the complete readable request; zero length requires zero offset; nonempty spans start after the header and may not overlap; groups are aligned little-endian u32",
+    "paths": "NUL-terminated Linux paths including the terminator; no embedded NUL; Linux owns PATH_MAX and NAME_MAX validation",
+    "credentials": "owner-only CLIENT_REGISTER/CREDENTIALS carry the complete credentials record in data, aligned supplementary groups and filesystem capability rights in request.capabilities; the service retains rights and Linux cred together, never derives authority from data-request capabilities, uid, gid or groups; ordinary dispatch selects the client from an authenticated queue binding; optional nonzero client and credential_generation claims must match that binding and its current credentials; zero claims select the binding and current credentials, not the owner; request uid/gid are chown operands, not identity",
+    "authorization": "filesystem capability rights supplement Linux DAC, never replace it; operation authorization and VFS execution consume the same immutable request snapshot and the same retained rights/cred pair; data dispatch rejects management/frontend operations even for a client with all rights; owner updates atomically publish the new rights/cred pair; already admitted operations may retain the previous pair, whereas admission after the update ACK uses the new pair",
+    "exec_payload": "data contains exec_payload header with relative spans; argv/envp span tables contain exec_string records with NUL-terminated strings relative to the same payload; grants, handles and patches use exec_grant, u64, exec_patch respectively; counts must exactly match span lengths; flags equal request flags; no fixed argv/envp/string caps beyond native launch resource limits",
+    "handles": "opaque monotonically minted file references scoped to sandbox generation and authenticated client; zero selects that client's granted root for directory operations",
+    "results": "negative Linux errno or nonnegative syscall result; file references use the separate handle field; raw linux_dirent64 and Linux statx/statfs records are explicitly serialized little-endian payloads",
+    "response": "data immediately follows the response header; used length is exactly header plus data_length; errors have no data or handle; echoed opcode, generation and sequence must match the owned request",
+    "flags": "Linux syscall flags are passed without a filed-specific translation; umask applies only to creation, and syncfs is scoped to the granted filesystem",
+    "ownership": "descriptor payloads are leased until completion; the service snapshots all untrusted inputs before entering Linux; no host FD or native pointer crosses this format",
+    "session_config": "authenticated frontend HELLO flags=1 reserves a fresh queue binding for that client; length selects a minimum arena budget, zero selects the configured default; response data is queue_config and handle is the fresh channel_id, never the client ID; SESSION_ATTACH uses that exact generation, channel_id, arena size and queue depth with one RW VMO and one dedicated notification endpoint; frontend forwards capabilities on the owner-only management channel and replies only after sandbox installation ACK; no request payload is relayed",
+    "session_detach": "authenticated frontend control operation; exactly one request header with no capability transfers; generation selects the reserved session generation and second_handle its fresh channel_id; all other operation operands and spans are zero; request client and credential metadata cannot confer authority; success echoes channel_id in response.handle only after sandbox quiesces the queue, unmaps it and closes its retained capabilities; managed client identity and file references remain alive; uncertain retirement is not acknowledged and retains the unresolved inventory",
+    "device_route": "frontend-only operation with OPENAT2 directory/path/flags operands and the same filesystem capability requirements; only a side-effect-free O_PATH lookup and device/service classification are allowed, never the original open or a general filesystem retry; ordinary clients use it only after direct OPENAT2 returns ENXIO/ENODEV; success returns the retained O_PATH handle, host service tag and encoded statx for that exact pinned device, so the client opens the selected native service without resolving the pathname again; non-device or unroutable paths fail without ordinary open, creation, truncation or data I/O"
+  }
+}

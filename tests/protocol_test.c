@@ -153,6 +153,32 @@ static int test_channel_rejection(void) {
     return 0;
 }
 
+static int test_request_only_channel(void) {
+    kb2_protocol_channel_t channel;
+    kb2_protocol_queue_t queues[2];
+    kb2_protocol_region_t region;
+    uint8_t bytes[512];
+    size_t size;
+    make_channel(&channel, queues, &region);
+    CHECK(kb2_protocol_channel_encoded_size(0, 1, &size) == KB2_PROTOCOL_INVALID_ARGUMENT);
+    CHECK(kb2_protocol_channel_encode(bytes, sizeof(bytes), &size,
+        &channel, &queues[1], 1, &region, 1) == KB2_PROTOCOL_OK);
+    CHECK(size == 192 && decode_channel(bytes, size) == KB2_PROTOCOL_OK);
+    CHECK(kb2_protocol_channel_encode(bytes, sizeof(bytes), &size,
+        &channel, &queues[0], 1, &region, 1) == KB2_PROTOCOL_MALFORMED);
+    queues[0].role = KB2_PROTOCOL_QUEUE_ROLE_REQUEST;
+    CHECK(kb2_protocol_channel_encode(bytes, sizeof(bytes), &size,
+        &channel, queues, 2, &region, 1) == KB2_PROTOCOL_OK);
+    queues[0].role = queues[1].role = KB2_PROTOCOL_QUEUE_ROLE_EVENT;
+    CHECK(kb2_protocol_channel_encode(bytes, sizeof(bytes), &size,
+        &channel, queues, 2, &region, 1) == KB2_PROTOCOL_MALFORMED);
+    queues[0].role = KB2_PROTOCOL_QUEUE_ROLE_REQUEST;
+    queues[0].queue_size = queues[0].max_chain_length = queues[0].max_outstanding = 1;
+    CHECK(kb2_protocol_channel_encode(bytes, sizeof(bytes), &size,
+        &channel, queues, 1, &region, 1) == KB2_PROTOCOL_OK);
+    return 0;
+}
+
 static int test_message_envelope(void) {
     uint8_t buffer[64] = {0};
     kb2_protocol_message_envelope_t envelope = {
@@ -278,6 +304,7 @@ static int test_closure_manifest(void) {
 int main(void) {
     CHECK(test_channel_round_trip() == 0);
     CHECK(test_channel_rejection() == 0);
+    CHECK(test_request_only_channel() == 0);
     CHECK(test_message_envelope() == 0);
     CHECK(test_sha256() == 0);
     CHECK(test_closure_manifest() == 0);

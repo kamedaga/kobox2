@@ -1,0 +1,67 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.block-device",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "constants": {
+    "header_bytes": 64,
+    "disk_bytes": 72,
+    "max_transfer": 131072,
+    "max_disks": 32,
+    "op_snapshot": 1,
+    "op_read": 2,
+    "op_write": 3,
+    "op_flush": 4,
+    "status_ok": 0,
+    "status_invalid": 1,
+    "status_stale": 2,
+    "status_no_device": 3,
+    "status_read_only": 4,
+    "status_no_space": 5,
+    "status_io": 6,
+    "status_unsupported": 7
+  },
+  "structures": {
+    "header": {
+      "size": 64,
+      "fields": [
+        {"name": "abi_identity", "type": "u8[4]", "offset": 0},
+        {"name": "opcode", "type": "u32", "offset": 4},
+        {"name": "status", "type": "u32", "offset": 8},
+        {"name": "count", "type": "u32", "offset": 12},
+        {"name": "generation", "type": "u64", "offset": 16},
+        {"name": "sequence", "type": "u64", "offset": 24},
+        {"name": "diskseq", "type": "u64", "offset": 32},
+        {"name": "offset", "type": "u64", "offset": 40},
+        {"name": "major", "type": "u32", "offset": 48},
+        {"name": "minor", "type": "u32", "offset": 52},
+        {"name": "length", "type": "u32", "offset": 56},
+        {"name": "reserved", "type": "u32", "offset": 60}
+      ]
+    },
+    "disk": {
+      "size": 72,
+      "fields": [
+        {"name": "diskseq", "type": "u64", "offset": 0},
+        {"name": "bytes", "type": "u64", "offset": 8},
+        {"name": "major", "type": "u32", "offset": 16},
+        {"name": "minor", "type": "u32", "offset": 20},
+        {"name": "logical_block_size", "type": "u32", "offset": 24},
+        {"name": "physical_block_size", "type": "u32", "offset": 28},
+        {"name": "removable", "type": "u32", "offset": 32},
+        {"name": "read_only", "type": "u32", "offset": 36},
+        {"name": "name", "type": "u8[32]", "offset": 40}
+      ]
+    }
+  },
+  "semantics": {
+    "scope": "one granted PCI function and its descendant whole disks",
+    "identity": "generation and Linux diskseq plus major/minor; no device names as authority",
+    "transfer": "aligned complete operations only; bounded to 128 KiB",
+    "writes": "only a separately selected disk identity and an explicitly writable launch",
+    "hotplug": "a stale diskseq is rejected after unplug or device-number reuse",
+    "snapshot": "offset is the zero-based cursor; count is a page size up to 32, not a total disk limit"
+  }
+}

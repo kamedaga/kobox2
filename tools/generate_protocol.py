@@ -15,6 +15,12 @@ CORE_RUNTIME_ABI_HEADER = (
     "core_runtime.h"
 )
 SCHEMAS = (
+    (ROOT / "protocol" / "schema" / "filesystem.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "filesystem_layout.h",
+     "KB2_FILESYSTEM", "KOBOX2_FILESYSTEM_LAYOUT_H"),
+    (ROOT / "protocol" / "schema" / "block_device.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "block_device_layout.h",
+     "KB2_BLOCK_DEVICE", "KOBOX2_BLOCK_DEVICE_LAYOUT_H"),
     (ROOT / "protocol" / "schema" / "device_port.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "device_port_layout.h",
      "KB2_DEVICE_PORT", "KOBOX2_DEVICE_PORT_LAYOUT_H"),
@@ -989,6 +995,14 @@ def validate_core_runtime(schema):
         raise ValueError("core runtime semantic contract mismatch")
 
 
+def validate_filesystem(schema):
+    constants = schema["constants"]
+    operations = [value for name, value in constants.items() if name.startswith("op_")]
+    if (len(operations) != constants.get("operation_count") or
+            sorted(operations) != list(range(1, len(operations) + 1))):
+        raise ValueError("filesystem operation IDs must form one complete sequence")
+
+
 def render(schema, prefix, guard):
     canonical = json.dumps(schema, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     digest = hashlib.sha256(canonical.encode("utf-8")).digest()
@@ -1879,6 +1893,7 @@ def main():
         loaded = [(load_schema(schema), output, prefix, guard)
                   for schema, output, prefix, guard in SCHEMAS]
         schemas = {schema["name"]: schema for schema, _, _, _ in loaded}
+        validate_filesystem(schemas["kobox2.filesystem"])
         validate_memory_arena(schemas["kobox2.memory-arena"])
         validate_device_resource(
             schemas["kobox2.pci-function"], "kobox2.pci-function", "device",

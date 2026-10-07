@@ -121,7 +121,6 @@ static kb2_status_t kb2_emit_action(kb2_controller_t *controller, kb2_action_typ
 static kb2_status_t kb2_validate_configuration(const kb2_controller_t *controller) {
     const uint32_t required_digest_mask =
         ((1u << KB2_DIGEST_KIND_COUNT) - 1u) & ~(1u << KB2_DIGEST_MANIFEST);
-    uint64_t channels;
     size_t index;
 
     if (controller->configuration.closure == NULL ||
@@ -142,11 +141,11 @@ static kb2_status_t kb2_validate_configuration(const kb2_controller_t *controlle
         return KB2_STATUS_INVALID_CONFIGURATION;
     }
 
-    channels = controller->configuration.limits[KB2_LIMIT_CHANNEL_COUNT];
-    if (channels > UINT64_MAX / 2u ||
-        controller->configuration.limits[KB2_LIMIT_QUEUE_COUNT] < channels * 2u) {
-        return KB2_STATUS_INVALID_CONFIGURATION;
-    }
+    /* These are independent resource budgets, not a transport topology.
+     * Management IPC has no split-ring queue, and request-only channels
+     * do not need a GPU event queue. The concrete channel binder validates
+     * its schema and allocations against the corresponding budgets.
+     */
     return KB2_STATUS_OK;
 }
 

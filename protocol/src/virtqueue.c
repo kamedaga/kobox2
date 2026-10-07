@@ -263,6 +263,7 @@ static void drop(kb2_vq_t *vq, kb2_vq_chain_t *chain) {
     for (size_t i = 0; i < direct_count; ++i)
         vq->descriptor_owner[chain->segments[i].descriptor] = 0;
     vq->slots[chain->head] = NULL;
+    if (vq->last_taken == chain) vq->last_taken = NULL;
     --vq->owned;
     chain->state = FREE;
 }
@@ -431,6 +432,39 @@ kb2_vq_status_t kb2_vq_take_available(kb2_vq_t *vq, uint64_t generation, kb2_vq_
         return status;
     claim(vq, chain, ACCEPTED);
     ++vq->consumed;
+    vq->last_taken = chain;
+    return KB2_VQ_OK;
+}
+
+kb2_vq_status_t kb2_vq_move_accepted(kb2_vq_t *vq, uint64_t generation,
+    kb2_vq_chain_t *source, kb2_vq_chain_t *destination) {
+    kb2_vq_status_t status = check(vq, generation);
+    if (status) return status;
+    if (vq->side != KB2_VQ_DEVICE || !owned(vq, source, ACCEPTED) ||
+        !destination || destination == source || destination->state ||
+        !destination->segments || destination->capacity < source->count)
+        return KB2_VQ_INVALID;
+    kb2_vq_segment_t *segments = destination->segments;
+    size_t capacity = destination->capacity;
+    memcpy(segments, source->segments, source->count * sizeof(*segments));
+    *destination = *source;
+    destination->segments = segments;
+    destination->capacity = capacity;
+    vq->slots[source->head] = destination;
+    if (vq->last_taken == source) vq->last_taken = destination;
+    source->state = FREE;
+    return KB2_VQ_OK;
+}
+
+kb2_vq_status_t kb2_vq_return_available(kb2_vq_t *vq, uint64_t generation,
+    kb2_vq_chain_t *chain) {
+    kb2_vq_status_t status = check(vq, generation);
+    if (status) return status;
+    if (vq->side != KB2_VQ_DEVICE || !owned(vq, chain, ACCEPTED) ||
+        vq->last_taken != chain || chain->written)
+        return KB2_VQ_INVALID;
+    drop(vq, chain);
+    --vq->consumed;
     return KB2_VQ_OK;
 }
 

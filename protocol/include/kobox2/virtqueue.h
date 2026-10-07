@@ -90,6 +90,7 @@ typedef struct kb2_vq {
     kb2_vq_memory_t memory;
     kb2_vq_side_t side;
     kb2_vq_chain_t **slots;
+    kb2_vq_chain_t *last_taken;
     uint16_t *descriptor_owner;
     uint16_t produced, consumed;
     uint32_t owned;
@@ -114,6 +115,16 @@ void kb2_vq_channel_fault(kb2_vq_channel_t *channel);
 kb2_vq_status_t
 kb2_vq_publish(kb2_vq_t *queue, uint64_t generation, kb2_vq_chain_t *chain, int *notify);
 kb2_vq_status_t kb2_vq_take_available(kb2_vq_t *queue, uint64_t generation, kb2_vq_chain_t *chain);
+/* Single-owner, private-state operations; no shared wire/indices are changed.
+ * Move transfers an accepted snapshot into request-owned segment storage.
+ * Return only the most recently taken, unwritten chain when downstream
+ * admission failed without executing anything. Its available entry remains
+ * unconsumed, so resource pressure cannot retain an unauthenticated backlog.
+ */
+kb2_vq_status_t kb2_vq_move_accepted(kb2_vq_t *queue, uint64_t generation,
+    kb2_vq_chain_t *source, kb2_vq_chain_t *destination);
+kb2_vq_status_t kb2_vq_return_available(kb2_vq_t *queue, uint64_t generation,
+    kb2_vq_chain_t *chain);
 kb2_vq_status_t kb2_vq_copy_request(kb2_vq_t *queue,
                                     uint64_t generation,
                                     kb2_vq_chain_t *chain,

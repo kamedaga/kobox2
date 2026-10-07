@@ -51,6 +51,8 @@ typedef enum kb2_digest_kind {
     KB2_DIGEST_CHANNEL_SET,
 } kb2_digest_kind_t;
 
+/* Independent budgets: no queue-per-channel ratio is implied. The host
+ * adapter validates its concrete management/request/event topology. */
 typedef enum kb2_limit_kind {
     KB2_LIMIT_SHARED_MEMORY_BYTES = 0,
     KB2_LIMIT_CHANNEL_COUNT,

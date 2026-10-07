@@ -105,7 +105,7 @@ static int write_bytes(void *context, uint64_t address, const void *bytes, size_
     if (!destination || (!bytes && size)) {
         return -1;
     }
-    if (size) {
+    if (size && destination != bytes) {
         memcpy(destination, bytes, size);
     }
     return 0;

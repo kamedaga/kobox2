@@ -82,6 +82,42 @@ static int test_configuration_rejection(void) {
     return 0;
 }
 
+static int test_independent_transport_budgets(void) {
+    const uint64_t topologies[][2] = {{4, 3}, {1, 1}, {2, 4}};
+    for (size_t index = 0; index < sizeof(topologies) / sizeof(topologies[0]); ++index) {
+        kb2_controller_t *controller = NULL;
+        uint64_t limit;
+        CHECK(kb2_controller_create(test_allocate, test_deallocate, NULL, &controller) ==
+              KB2_STATUS_OK);
+        CHECK(configure_controller(controller) == 0);
+        CHECK(kb2_controller_set_limit(controller, KB2_LIMIT_CHANNEL_COUNT,
+                                       topologies[index][0]) == KB2_STATUS_OK);
+        CHECK(kb2_controller_set_limit(controller, KB2_LIMIT_QUEUE_COUNT,
+                                       topologies[index][1]) == KB2_STATUS_OK);
+        CHECK(kb2_controller_start(controller) == KB2_STATUS_OK);
+        const kb2_action_t *action = kb2_controller_pending_action(controller);
+        CHECK(action && kb2_action_type(action) == KB2_ACTION_ALLOCATE_RESOURCES);
+        CHECK(kb2_action_limit(action, KB2_LIMIT_CHANNEL_COUNT, &limit) == KB2_STATUS_OK);
+        CHECK(limit == topologies[index][0]);
+        CHECK(kb2_action_limit(action, KB2_LIMIT_QUEUE_COUNT, &limit) == KB2_STATUS_OK);
+        CHECK(limit == topologies[index][1]);
+        CHECK(complete_pending(controller, KB2_ACTION_ALLOCATE_RESOURCES, 7, 0) == 0);
+        CHECK(complete_pending(controller, KB2_ACTION_LAUNCH_SANDBOX, 0, 11) == 0);
+        CHECK(complete_pending(controller, KB2_ACTION_TRANSFER_RESOURCES, 0, 0) == 0);
+        CHECK(kb2_controller_report_ready(controller,
+                                          kb2_controller_generation(controller)) == KB2_STATUS_OK);
+        CHECK(kb2_controller_stop(controller) == KB2_STATUS_OK);
+        CHECK(complete_pending(controller, KB2_ACTION_QUIESCE_SANDBOX, 0, 0) == 0);
+        CHECK(complete_pending(controller, KB2_ACTION_REVOKE_RESOURCES, 0, 0) == 0);
+        CHECK(complete_pending(controller, KB2_ACTION_RESET_RESOURCES, 0, 0) == 0);
+        CHECK(complete_pending(controller, KB2_ACTION_REAP_SANDBOX, 0, 0) == 0);
+        CHECK(complete_pending(controller, KB2_ACTION_RELEASE_RESOURCES, 0, 0) == 0);
+        CHECK(kb2_controller_state(controller) == KB2_STATE_IDLE);
+        kb2_controller_destroy(controller);
+    }
+    return 0;
+}
+
 static int test_start_and_restart(void) {
     const kb2_action_t *action;
     uint8_t digest[KB2_DIGEST_SIZE];
@@ -348,6 +384,7 @@ static int test_revoke_failure_quarantines_generation(void) {
 
 int main(void) {
     CHECK(test_configuration_rejection() == 0);
+    CHECK(test_independent_transport_budgets() == 0);
     CHECK(test_start_and_restart() == 0);
     CHECK(test_host_action_failure() == 0);
     CHECK(test_action_completion_validation() == 0);

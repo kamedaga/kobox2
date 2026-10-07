@@ -351,6 +351,42 @@ static void peer_rejection(void) {
     }
 }
 
+static void admission_snapshot_transfer(void) {
+    struct fixture f;
+    init(&f, 0, 2);
+    kb2_vq_segment_t segments[2][2], scratch[QUEUE_SIZE], private_segments[2][2];
+    kb2_vq_chain_t send[2], probe = {.segments = scratch, .capacity = QUEUE_SIZE};
+    kb2_vq_chain_t accepted[2] = {{.segments = private_segments[0], .capacity = 2},
+        {.segments = private_segments[1], .capacity = 2}};
+    int notify;
+    for (unsigned i = 0; i < 2; ++i) {
+        send[i] = request(segments[i], (uint16_t)(i * 2), 8192 + 64 * i);
+        CHECK(kb2_vq_publish(&f.driver.queue, GENERATION, &send[i], &notify) == KB2_VQ_OK);
+        CHECK(kb2_vq_take_available(&f.device.queue, GENERATION, &probe) == KB2_VQ_OK);
+        CHECK(kb2_vq_move_accepted(&f.device.queue, GENERATION, &probe, &accepted[i]) == KB2_VQ_OK);
+        CHECK(!probe.state && f.device.queue.slots[accepted[i].head] == &accepted[i]);
+    }
+    CHECK(f.device.queue.owned == 2 && f.device.queue.consumed == 2);
+    CHECK(kb2_vq_return_available(&f.device.queue, GENERATION, &accepted[0]) == KB2_VQ_INVALID);
+    unsigned before = f.io_count;
+    CHECK(kb2_vq_return_available(&f.device.queue, GENERATION, &accepted[1]) == KB2_VQ_OK);
+    CHECK(f.io_count == before && f.device.queue.owned == 1 && f.device.queue.consumed == 1);
+    CHECK(!accepted[1].state && !f.device.queue.slots[send[1].head]);
+    CHECK(kb2_vq_take_available(&f.device.queue, GENERATION, &probe) == KB2_VQ_OK);
+    CHECK(probe.head == send[1].head);
+    CHECK(kb2_vq_move_accepted(&f.device.queue, GENERATION, &probe, &accepted[1]) == KB2_VQ_OK);
+    unsigned char response = 0x73;
+    CHECK(kb2_vq_write_response(&f.device.queue, GENERATION, &accepted[1], &response, 1) == KB2_VQ_OK);
+    CHECK(kb2_vq_return_available(&f.device.queue, GENERATION, &accepted[1]) == KB2_VQ_INVALID);
+    for (int i = 1; i >= 0; --i) {
+        kb2_vq_chain_t *done;
+        CHECK(kb2_vq_complete(&f.device.queue, GENERATION, &accepted[i], &notify) == KB2_VQ_OK);
+        CHECK(kb2_vq_take_used(&f.driver.queue, GENERATION, &done) == KB2_VQ_OK && done == &send[i]);
+        CHECK(kb2_vq_release(&f.driver.queue, GENERATION, done) == KB2_VQ_OK);
+    }
+    CHECK(!f.device.queue.owned && !f.driver.queue.owned);
+}
+
 static void ownership_and_completion(void) {
     struct fixture f;
     init(&f, 0, 2);
@@ -649,6 +685,7 @@ int main(void) {
     local_rejection();
     peer_rejection();
     ownership_and_completion();
+    admission_snapshot_transfer();
     malformed_used();
     notifications_and_wrap();
     event_and_generation();

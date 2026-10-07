@@ -174,6 +174,7 @@ static int kb2_validate_queues(const kb2_protocol_queue_t *queues,
     const uint32_t ring_rights =
         KB2_PROTOCOL_REGION_RIGHT_READ | KB2_PROTOCOL_REGION_RIGHT_WRITE;
     size_t event_count = 0;
+    size_t request_count = 0;
     size_t index;
 
     for (index = 0; index < queue_count; ++index) {
@@ -198,6 +199,8 @@ static int kb2_validate_queues(const kb2_protocol_queue_t *queues,
         }
         if (queue->role == KB2_PROTOCOL_QUEUE_ROLE_EVENT) {
             ++event_count;
+        } else {
+            ++request_count;
         }
 
         descriptor_length = kb2_queue_range_length(queue, 0);
@@ -221,7 +224,10 @@ static int kb2_validate_queues(const kb2_protocol_queue_t *queues,
             return 0;
         }
     }
-    return event_count == 1;
+    /* Doorbells report ring progress, not application events. Filesystem
+     * RPC must not allocate a dummy event lane to satisfy GPU-only policy. */
+    return event_count <= KB2_PROTOCOL_CHANNEL_EVENT_QUEUES_MAX &&
+        request_count >= KB2_PROTOCOL_CHANNEL_REQUEST_QUEUES_MIN;
 }
 
 static int kb2_validate_channel_model(const kb2_protocol_channel_t *channel,
@@ -229,7 +235,8 @@ static int kb2_validate_channel_model(const kb2_protocol_channel_t *channel,
                                       size_t queue_count,
                                       const kb2_protocol_region_t *regions,
                                       size_t region_count) {
-    if (channel == NULL || queues == NULL || regions == NULL || queue_count < 2 ||
+    if (channel == NULL || queues == NULL || regions == NULL ||
+        queue_count < KB2_PROTOCOL_MIN_QUEUES ||
         queue_count > KB2_PROTOCOL_MAX_QUEUES || region_count == 0 ||
         region_count > KB2_PROTOCOL_MAX_REGIONS ||
         channel->feature_bits != KB2_PROTOCOL_TRANSPORT_FEATURES_REQUIRED ||
@@ -266,7 +273,8 @@ kb2_protocol_status_t kb2_protocol_channel_encoded_size(size_t queue_count,
                                                         size_t *size_out) {
     size_t size;
 
-    if (size_out == NULL || queue_count < 2 || queue_count > KB2_PROTOCOL_MAX_QUEUES ||
+    if (size_out == NULL || queue_count < KB2_PROTOCOL_MIN_QUEUES ||
+        queue_count > KB2_PROTOCOL_MAX_QUEUES ||
         region_count == 0 || region_count > KB2_PROTOCOL_MAX_REGIONS) {
         return KB2_PROTOCOL_INVALID_ARGUMENT;
     }

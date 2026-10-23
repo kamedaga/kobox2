@@ -406,6 +406,20 @@ static kb2_vq_status_t pending_index(kb2_vq_t *vq, uint16_t *distance) {
     return *distance ? KB2_VQ_OK : KB2_VQ_EMPTY;
 }
 
+kb2_vq_status_t kb2_vq_peek_available(kb2_vq_t *vq, uint64_t generation, int *pending) {
+    kb2_vq_status_t status = check(vq, generation);
+    uint16_t distance;
+    if (status)
+        return status;
+    if (vq->side != KB2_VQ_DEVICE || !pending)
+        return KB2_VQ_INVALID;
+    status = pending_index(vq, &distance);
+    if (status != KB2_VQ_OK && status != KB2_VQ_EMPTY)
+        return status;
+    *pending = status == KB2_VQ_OK;
+    return KB2_VQ_OK;
+}
+
 kb2_vq_status_t kb2_vq_take_available(kb2_vq_t *vq, uint64_t generation, kb2_vq_chain_t *chain) {
     kb2_vq_status_t status = check(vq, generation);
     uint16_t distance;

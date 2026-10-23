@@ -56,7 +56,11 @@ kb2_fs_operation_class_t kb2_fs_request_policy(const kb2_fs_request_t *request,
     case KB2_FILESYSTEM_OP_SESSION_ATTACH:
     case KB2_FILESYSTEM_OP_SESSION_DETACH:
     case KB2_FILESYSTEM_OP_TRANSFER_DUP:
+        return KB2_FS_OPERATION_FRONTEND;
     case KB2_FILESYSTEM_OP_SHARED_FILE_VMO:
+        *required_rights = KB2_FILESYSTEM_RIGHT_READ;
+        if (request->flags & 1u) *required_rights |= KB2_FILESYSTEM_RIGHT_WRITE;
+        if (request->flags & 2u) *required_rights |= KB2_FILESYSTEM_RIGHT_EXEC;
         return KB2_FS_OPERATION_FRONTEND;
     case KB2_FILESYSTEM_OP_EXEC_PATH:
     case KB2_FILESYSTEM_OP_EXEC_SELF:
@@ -70,6 +74,11 @@ kb2_fs_operation_class_t kb2_fs_request_policy(const kb2_fs_request_t *request,
     case KB2_FILESYSTEM_OP_READ:
     case KB2_FILESYSTEM_OP_PREAD:
         *required_rights = KB2_FILESYSTEM_RIGHT_READ;
+        /* Opt-in snapshot validation exposes inode metadata as well as the
+         * bytes. A READ-only client must not bypass its denied STAT grant. */
+        if (request->opcode==KB2_FILESYSTEM_OP_PREAD &&
+            request->mode==KB2_FILESYSTEM_SNAPSHOT_QUERY)
+            *required_rights |= KB2_FILESYSTEM_RIGHT_STAT;
         break;
     case KB2_FILESYSTEM_OP_WRITE:
     case KB2_FILESYSTEM_OP_PWRITE:

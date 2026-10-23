@@ -410,7 +410,25 @@ filed に残すのは client 認証・capability policy・接続管理、native 
 routing。filed VFS/cache/tmpfs と LPR の FS data/name/offset cache を撤去し、Linux が
 namespace と file 状態を持つ。exec は固定 argv/envp/string buffer でなく可変長 span を使う。
 
-live cpio boot と MAP_SHARED の page-cache coherence / writeback は後続 live/shmem
-フェーズの対象。SHARED_FILE_VMO は現在 EOPNOTSUPP とし、private copy を Linux と共有の
-メモリとして扱わない。pointer を持つ fcntl lock 操作も serialization を定義するまで
-明示的に未対応。private mapping の試験成功だけでこれらも動くとは主張しない。
+SHARED_FILE_VMO は Linux page-cache/shmem folio を pin し、native sparse page view
+として共有する。pread の private copy は使わない。generation/sequence/export ID を
+照合する管理 channel の capability 添付で委譲し、wire に native FD を埋め込まない。
+Linux が mmap admission・filesystem page_mkwrite を、FileD が client 認証を持つ。
+shmem の seal は Linux の認可・security hook・EXEC 含意・write counter の規則に従う。
+native RO export がある場合だけ Kobox の bridge が、自分の厳密な RO slot 参照数を
+Linux の期待 folio 参照数に加えて検査する。物理 pin は解除せず、他の外部 pin は
+引き続き WRITE seal を阻止する。上限権限が WRITE の export は現在 RO でも除外しない。
+Linux upstream は変更しない。
+export 不在時は read guard のまま backing 操作を並行実行し、新規公開は write admission
+で完了を待つ。空一覧の定期回収は不要な writer を待機させない。export 存在時は O_DIRECT
+整合性のための READ/PREAD も含め backing 操作を global に直列化する。無関係な名前・stat
+操作は除外するが、export 存在時の inode ごとの並行化まで実装したものではない。
+truncate/grow は native TLB の退役を確認してから旧 folio pin を解放する。EOF より先の
+欠損 backing は LPR が SIGBUS として通知する。非成長 mremap の移動・縮小でも同じ view
+identity と offset を維持する。共有 range view の拡張は未対応。最後の native alias/capability の退役と
+revoke 成功まで writable-mapping seal counter を維持する。native PTE は Linux の
+page_mkclean に参加しないため、書込み可能 export を FS 操作前と定期処理で保守的に dirty
+にする。DAX/device・非 page-cache export、live cpio boot、pointer を持つ fcntl lock の
+serialization は未対応。ホスト単体試験だけで guest の writeback やブラウザ成功とはしない。
+native MPROTECT は上限権限違反と無効範囲を同じ status にまとめるため、LPR の拒否 errno は
+Linux の EACCES でなく EINVAL になる。書込み昇格自体は拒否するが、errno の完全互換は未対応。

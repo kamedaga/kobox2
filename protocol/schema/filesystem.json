@@ -19,6 +19,8 @@
     "right_remove": 256,
     "right_rename": 512,
     "rights_valid_mask": 1023,
+    "snapshot_query": 1,
+    "snapshot_valid": 1,
     "op_hello": 1,
     "op_client_register": 2,
     "op_client_credentials": 3,
@@ -186,6 +188,21 @@
         {"name": "reserved", "type": "u32", "offset": 12}
       ]
     },
+    "snapshot_metadata": {
+      "size": 16,
+      "fields": [
+        {"name": "inode_generation", "type": "u32", "offset": 0},
+        {"name": "flags", "type": "u32", "offset": 4},
+        {"name": "change_cookie", "type": "u64", "offset": 8}
+      ]
+    },
+    "snapshot_stat": {
+      "size": 272,
+      "fields": [
+        {"name": "metadata", "type": "u8[16]", "offset": 0},
+        {"name": "statx", "type": "u8[256]", "offset": 16}
+      ]
+    },
     "statx": {
       "size": 256,
       "fields": [
@@ -276,6 +293,8 @@
     "response": "data immediately follows the response header; used length is exactly header plus data_length; errors have no data or handle; echoed opcode, generation and sequence must match the owned request",
     "flags": "Linux syscall flags are passed without a filed-specific translation; umask applies only to creation, and syncfs is scoped to the granted filesystem",
     "ownership": "descriptor payloads are leased until completion; the service snapshots all untrusted inputs before entering Linux; no host FD or native pointer crosses this format",
+    "snapshot": "STATX mode=1 (snapshot_query) requests snapshot_stat, only for a readable regular-file handle with AT_EMPTY_PATH and no pathname; snapshot_metadata flags bit 0 asserts an actual Linux change cookie and the inode generation (including legitimate zero) with no writable open descriptions or shared writable mappings; otherwise flags is zero, never a guessed timestamp cookie. PREAD mode=1 requests a cookie sampled after that read in response.handle and snapshot validity flags in response.service; flags zero means invalid. Result and data_length remain the read byte count, preserving direct copies into the destination VMO. Consumers compare against the initial stat and never cache a mismatched or invalid copy. FILE_VMO response.handle is the page-aligned offset into the transferred VMO, result remains the requested range bytes read. For STATX and PREAD only, mode is a protocol selector: 0 preserves the ordinary Linux operation, 1 requests snapshot validation, and other values are rejected. It is independent of Linux mask/flags; application statx mask 0x40000000 (kernel-only STATX_CHANGE_COOKIE) is ignored and never selects snapshot_stat. No version negotiation or compatibility alias.",
+    "shared_file_vmo": "owner-only authenticated export of real Linux regular-file/shmem page-cache pages; offset and length are page-aligned and length is nonzero; flags bits 0 and 1 request future WRITE and EXEC ceilings, mask holds initial Linux PROT bits 0..2; READ filesystem capability is mandatory with WRITE/EXEC capabilities for the respective ceilings; Linux file mode, seals, noexec and mmap security may further attenuate rights; response handle is an opaque export ID and result is file size; native VMO capability is transferred separately on the authenticated management channel, bound to generation, client, sequence and export ID, never encoded as a wire FD; pages beyond EOF are sparse unavailable backing, not zero-filled anonymous pages; refresh retires native translations before Linux releases old folio pins; reclamation requires confirmed native capability/mapping exclusivity and revocation",
     "session_config": "authenticated frontend HELLO flags=1 reserves a fresh queue binding for that client; length selects a minimum arena budget, zero selects the configured default; response data is queue_config and handle is the fresh channel_id, never the client ID; SESSION_ATTACH uses that exact generation, channel_id, arena size and queue depth with one RW VMO and one dedicated notification endpoint; frontend forwards capabilities on the owner-only management channel and replies only after sandbox installation ACK; no request payload is relayed",
     "session_detach": "authenticated frontend control operation; exactly one request header with no capability transfers; generation selects the reserved session generation and second_handle its fresh channel_id; all other operation operands and spans are zero; request client and credential metadata cannot confer authority; success echoes channel_id in response.handle only after sandbox quiesces the queue, unmaps it and closes its retained capabilities; managed client identity and file references remain alive; uncertain retirement is not acknowledged and retains the unresolved inventory",
     "device_route": "frontend-only operation with OPENAT2 directory/path/flags operands and the same filesystem capability requirements; only a side-effect-free O_PATH lookup and device/service classification are allowed, never the original open or a general filesystem retry; ordinary clients use it only after direct OPENAT2 returns ENXIO/ENODEV; success returns the retained O_PATH handle, host service tag and encoded statx for that exact pinned device, so the client opens the selected native service without resolving the pathname again; non-device or unroutable paths fail without ordinary open, creation, truncation or data I/O"

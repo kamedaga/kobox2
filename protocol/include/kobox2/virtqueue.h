@@ -115,6 +115,10 @@ void kb2_vq_channel_fault(kb2_vq_channel_t *channel);
 kb2_vq_status_t
 kb2_vq_publish(kb2_vq_t *queue, uint64_t generation, kb2_vq_chain_t *chain, int *notify);
 kb2_vq_status_t kb2_vq_take_available(kb2_vq_t *queue, uint64_t generation, kb2_vq_chain_t *chain);
+/* Device side: whether the driver has published past consumed, without
+ * taking or claiming anything. Lets a device polling many mostly idle rings
+ * skip one without its lock; take_available remains the authority. */
+kb2_vq_status_t kb2_vq_peek_available(kb2_vq_t *queue, uint64_t generation, int *pending);
 /* Single-owner, private-state operations; no shared wire/indices are changed.
  * Move transfers an accepted snapshot into request-owned segment storage.
  * Return only the most recently taken, unwritten chain when downstream

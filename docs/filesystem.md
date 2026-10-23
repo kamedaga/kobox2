@@ -5,6 +5,23 @@ The filesystem interface is an unnumbered `dev` contract. The MIT schema in
 constants and bounded codecs are shared with the separate GPL Linux process.
 It replaces the old filed ABI, rather than translating or supporting it.
 
+## OPEN metadata
+
+`OPENAT2.mask = 0` requests only a handle. A nonzero mask requests a
+best-effort statx payload for that opened handle, using bits from
+`STATX_BASIC_STATS`; other bits are rejected before opening. The client must
+provide `STATX_SIZE` output bytes before an open can create or truncate a file.
+On successful open the response contains exactly that many bytes. Attributes
+are obtained under the captured credentials only when the captured filesystem
+rights include `STAT`. A denied or failed attribute lookup returns an all-zero
+statx payload without turning the successful open into a failure. Open failures
+return no attributes or handle.
+
+This uses the existing request mask and statx encoding, without new layout,
+opcode, or version fields. It removes the extra FSTAT round trip used by LPR to
+classify device aliases while leaving handle-only clients free of attribute
+work. LPR does not fall back to a separate FSTAT when the payload is malformed.
+
 ## Authority and wire format
 
 The native host adapter now also supports owner-registered, dedicated client
@@ -498,8 +515,32 @@ service routing. Its VFS/cache/tmpfs and LPR filesystem data/name/offset caches
 are removed; Linux owns namespace and file state. Exec uses variable spans,
 counts and strings instead of the old fixed argument/environment buffers.
 
-Live cpio boot and coherent MAP_SHARED export/writeback belong to the later
-live/shmem phase. SHARED_FILE_VMO currently returns EOPNOTSUPP: a private copy
-must not masquerade as shared Linux page-cache memory. Pointer-bearing fcntl
-lock commands are also explicitly unsupported until their serialization is
-defined. These are not claimed as working by a successful private-map test.
+SHARED_FILE_VMO exports pinned Linux page-cache/shmem folios through native
+sparse page views, never private pread copies. A generation/sequence/export-ID
+bound management attachment carries the attenuated native capability. Linux
+owns mmap admission, seals and filesystem page_mkwrite; FileD owns client
+authentication. Truncate/growth refresh page views and retire native TLBs
+before releasing old pins. Beyond-EOF access is delivered as Linux SIGBUS by
+LPR. Non-growing mremap relocation/shrink retains the same view identity and
+offset; growth of a shared range view is not supported. Exports retain their
+writable-mapping seal counter until the last native
+alias/capability has retired and revocation succeeds. Writable exports are
+tracked by their lifetime permission ceiling, not current mprotect state.
+For shmem with native read-only exports, the Kobox seal bridge retains every
+physical pin and compares Linux's expected folio references plus precisely
+its own read-only slot references. Other external pins still block WRITE
+sealing. Admission, security checks, EXEC implications and writable-counter
+rollback follow Linux memfd semantics; upstream Linux is unchanged.
+An empty inventory admits concurrent backing operations under a read guard;
+publication requires write admission and waits for those operations. Idle
+maintenance does not queue a needless writer. With exports present, backing
+operations (including reads for O_DIRECT coherence) still serialize globally;
+unrelated namespace/stat operations do not. This is not per-inode concurrency.
+Writable exports are conservatively dirtied before filesystem operations and periodically because
+native PTEs do not participate in Linux page_mkclean tracking. DAX/device and
+non-page-cache exports are unsupported. Live cpio boot and pointer-bearing
+fcntl lock serialization remain outside this implementation. Host unit tests
+alone do not establish browser or guest writeback correctness.
+Native MPROTECT currently reports an authority-ceiling rejection with the
+same status as invalid ranges; LPR therefore returns EINVAL rather than Linux's
+EACCES. The write escalation is denied; exact errno parity remains unsupported.

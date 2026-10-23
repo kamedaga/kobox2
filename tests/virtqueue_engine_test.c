@@ -185,10 +185,18 @@ static void round_trip(void) {
     unsigned char bytes[8];
     memcpy(f.bytes + 8192, "abc", 3);
     memcpy(f.bytes + 8200, "defgh", 5);
+    int pending = -1;
+    CHECK(kb2_vq_peek_available(&f.driver.queue, GENERATION, &pending) == KB2_VQ_INVALID);
+    CHECK(kb2_vq_peek_available(&f.device.queue, GENERATION, &pending) == KB2_VQ_OK && !pending);
     CHECK(kb2_vq_arm(&f.device.queue, GENERATION, &ready) == KB2_VQ_OK && !ready);
     CHECK(kb2_vq_publish(&f.driver.queue, GENERATION, &send, &notify) == KB2_VQ_OK && notify);
+    /* Peeking claims nothing: the chain is still there for take. */
+    CHECK(kb2_vq_peek_available(&f.device.queue, GENERATION, &pending) == KB2_VQ_OK && pending);
+    CHECK(kb2_vq_peek_available(&f.device.queue, GENERATION, &pending) == KB2_VQ_OK && pending);
     CHECK(kb2_vq_arm(&f.device.queue, GENERATION, &ready) == KB2_VQ_OK && ready);
     CHECK(kb2_vq_take_available(&f.device.queue, GENERATION, &receive) == KB2_VQ_OK);
+    CHECK(kb2_vq_peek_available(&f.device.queue, GENERATION, &pending) == KB2_VQ_OK && !pending);
+    CHECK(kb2_vq_peek_available(&f.device.queue, GENERATION + 1, &pending) == KB2_VQ_STALE);
     /* The peer can edit descriptors after publication; dispatch uses only the snapshot. */
     memset(f.bytes + f.queues[1].descriptor_address, 0xff, QUEUE_SIZE * 16);
     CHECK(kb2_vq_copy_request(&f.device.queue, GENERATION, &receive, 1, bytes, 6) == KB2_VQ_OK);

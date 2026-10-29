@@ -27,6 +27,12 @@ typedef struct kb2_fs_request {
     uint64_t capabilities;
 } kb2_fs_request_t;
 
+/* FCNTL F_SETLK (Linux command 6): mode is F_RDLCK/F_WRLCK/F_UNLCK,
+ * offset is the absolute start, length is the signed Linux l_len bit pattern,
+ * mask and data are zero. The authenticated client owns the POSIX lock.
+ * LPR resolves SEEK_CUR/END once and implements F_SETLKW as interruptible
+ * retries of this nonblocking operation; no client pointer enters storage. */
+
 typedef struct kb2_fs_response {
     uint32_t opcode;
     uint64_t generation, sequence;

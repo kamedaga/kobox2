@@ -1,0 +1,24 @@
+{
+  "spdx": "MIT",
+  "name": "kobox2.platform-device",
+  "byte_order": "little",
+  "abi_identity": "dev\u0000",
+  "digest_algorithm": "sha256",
+  "digest_canonicalization": "RFC8785",
+  "resource_type": "device",
+  "constants": {
+    "native_handle_role_device": 0,
+    "required_rights": 7,
+    "controller_i8042": 1,
+    "access_width_8": 1
+  },
+  "native_handles": [
+    { "role": 0, "name": "platform-controller", "count": 1 }
+  ],
+  "structures": {},
+  "operations": [
+    { "id": 1, "name": "identity", "outputs": ["generation", "object_id", "controller_kind"] },
+    { "id": 2, "name": "read", "inputs": ["port", "width"], "outputs": ["value"] },
+    { "id": 3, "name": "write", "inputs": ["port", "width", "value"] }
+  ]
+}

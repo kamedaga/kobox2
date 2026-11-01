@@ -4,6 +4,7 @@
 #define KOBOX2_GPU_H
 
 #include <kobox2/gpu_drm_amdgpu_layout.h>
+#include <kobox2/gpu_drm_i915_layout.h>
 #include <kobox2/gpu_drm_core_layout.h>
 #include <kobox2/gpu_drm_mode_layout.h>
 #include <kobox2/gpu_drm_virtgpu_layout.h>
@@ -143,6 +144,7 @@ typedef struct kb2_gpu_virtgpu_map_completion {
  * cannot be accepted for the wrong command merely because its fields match. */
 typedef kb2_gpu_virtgpu_map_completion_t kb2_gpu_mode_map_completion_t;
 typedef kb2_gpu_virtgpu_map_completion_t kb2_gpu_amdgpu_map_completion_t;
+typedef kb2_gpu_virtgpu_map_completion_t kb2_gpu_i915_map_completion_t;
 
 kb2_protocol_status_t kb2_gpu_inline_completion_encode(uint8_t *buffer,
     size_t capacity, size_t *size_out, const kb2_gpu_inline_completion_t *completion);
@@ -172,6 +174,12 @@ kb2_protocol_status_t kb2_gpu_amdgpu_map_completion_encode(uint8_t *buffer,
 kb2_protocol_status_t kb2_gpu_amdgpu_map_completion_decode(const uint8_t *buffer,
     size_t size, uint64_t expected_session, uint64_t expected_generation,
     kb2_gpu_amdgpu_map_completion_t *completion_out);
+kb2_protocol_status_t kb2_gpu_i915_map_completion_encode(uint8_t *buffer,
+    size_t capacity, size_t *size_out,
+    const kb2_gpu_i915_map_completion_t *completion);
+kb2_protocol_status_t kb2_gpu_i915_map_completion_decode(const uint8_t *buffer,
+    size_t size, uint64_t expected_session, uint64_t expected_generation,
+    kb2_gpu_i915_map_completion_t *completion_out);
 
 const char *kb2_gpu_schema_sha256_hex(void);
 kb2_protocol_status_t kb2_gpu_copy_schema_digest(uint8_t *digest_out,

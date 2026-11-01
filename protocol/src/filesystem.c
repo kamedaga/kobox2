@@ -85,6 +85,10 @@ kb2_fs_operation_class_t kb2_fs_request_policy(const kb2_fs_request_t *request,
     case KB2_FILESYSTEM_OP_FTRUNCATE:
         *required_rights = KB2_FILESYSTEM_RIGHT_WRITE;
         break;
+    case KB2_FILESYSTEM_OP_POLL:
+        /* Readiness observes an already-authorized open description.  Access
+         * mode and the requested events do not grant additional I/O rights. */
+        break;
     case KB2_FILESYSTEM_OP_GETDENTS64:
         *required_rights = KB2_FILESYSTEM_RIGHT_GETDENTS;
         break;

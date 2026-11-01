@@ -17,6 +17,8 @@ static const uint8_t kb2_gpu_drm_virtgpu_digest[KB2_GPU_SCHEMA_DIGEST_SIZE] =
     KB2_GPU_DRM_VIRTGPU_SCHEMA_SHA256_BYTES;
 static const uint8_t kb2_gpu_drm_amdgpu_digest[KB2_GPU_SCHEMA_DIGEST_SIZE] =
     KB2_GPU_DRM_AMDGPU_SCHEMA_SHA256_BYTES;
+static const uint8_t kb2_gpu_drm_i915_digest[KB2_GPU_SCHEMA_DIGEST_SIZE] =
+    KB2_GPU_DRM_I915_SCHEMA_SHA256_BYTES;
 
 static uint32_t load_u32(const uint8_t *source) {
     return (uint32_t)source[0] | ((uint32_t)source[1] << 8u) |
@@ -59,7 +61,8 @@ static int size_add_multiply(size_t base, size_t count, size_t width, size_t *re
 }
 
 static int profile_kind_valid(uint32_t profile_kind) {
-    return profile_kind == KB2_GPU_PROFILE_VIRGL || profile_kind == KB2_GPU_PROFILE_AMDGPU;
+    return profile_kind == KB2_GPU_PROFILE_VIRGL ||
+        profile_kind == KB2_GPU_PROFILE_I915 || profile_kind == KB2_GPU_PROFILE_AMDGPU;
 }
 
 static void set_descriptor(uint32_t set_id,
@@ -119,6 +122,12 @@ kb2_protocol_status_t kb2_gpu_profile_command_set(uint32_t profile_kind,
                        KB2_GPU_QUEUE_EXECUTION,
                        KB2_GPU_DRM_VIRTGPU_COMMAND_COUNT,
                        kb2_gpu_drm_virtgpu_digest,
+                       set_out);
+    } else if (profile_kind == KB2_GPU_PROFILE_I915) {
+        set_descriptor(KB2_GPU_DRM_I915_SET_ID,
+                       KB2_GPU_QUEUE_EXECUTION,
+                       KB2_GPU_DRM_I915_COMMAND_COUNT,
+                       kb2_gpu_drm_i915_digest,
                        set_out);
     } else {
         set_descriptor(KB2_GPU_DRM_AMDGPU_SET_ID,
@@ -452,6 +461,12 @@ static const kb2_gpu_span_contract_t kb2_gpu_mode_span_contracts[] = {
 static const kb2_gpu_request_contract_t kb2_gpu_virtgpu_request_contracts[] = {
     KB2_GPU_DRM_VIRTGPU_REQUEST_CONTRACT_CATALOG(KB2_GPU_REQUEST_CONTRACT)
 };
+static const kb2_gpu_request_contract_t kb2_gpu_i915_request_contracts[] = {
+    KB2_GPU_DRM_I915_REQUEST_CONTRACT_CATALOG(KB2_GPU_REQUEST_CONTRACT)
+};
+static const kb2_gpu_span_contract_t kb2_gpu_i915_span_contracts[] = {
+    KB2_GPU_DRM_I915_REQUEST_SPAN_CATALOG(KB2_GPU_SPAN_CONTRACT)
+};
 static const kb2_gpu_span_contract_t kb2_gpu_virtgpu_span_contracts[] = {
     KB2_GPU_DRM_VIRTGPU_REQUEST_SPAN_CATALOG(KB2_GPU_SPAN_CONTRACT)
 };
@@ -508,6 +523,16 @@ static int request_catalog(uint32_t command_set_id,
                            const kb2_gpu_attachment_contract_t **attachments_out,
                            size_t *attachment_count_out) {
     switch (command_set_id) {
+    case KB2_GPU_DRM_I915_SET_ID:
+        *requests_out = kb2_gpu_i915_request_contracts;
+        *request_count_out = sizeof(kb2_gpu_i915_request_contracts) /
+                             sizeof(kb2_gpu_i915_request_contracts[0]);
+        *spans_out = kb2_gpu_i915_span_contracts;
+        *span_count_out = sizeof(kb2_gpu_i915_span_contracts) /
+                          sizeof(kb2_gpu_i915_span_contracts[0]);
+        *attachments_out = NULL;
+        *attachment_count_out = 0;
+        return 1;
     case KB2_GPU_DRM_CORE_SET_ID:
         *requests_out = kb2_gpu_core_request_contracts;
         *request_count_out = sizeof(kb2_gpu_core_request_contracts) /
@@ -900,8 +925,11 @@ static int core_request_semantics_valid(const kb2_gpu_command_source_t *source) 
         return load_u32(data +
                         KB2_GPU_DRM_CORE_RECORD_SYNCOBJ_CREATE_REQUEST_RESERVED_OFFSET) == 0;
     case KB2_GPU_DRM_CORE_COMMAND_SYNCOBJ_ATTACHMENT_TO_HANDLE:
-        return load_u32(data +
-                        KB2_GPU_DRM_CORE_RECORD_SYNCOBJ_IMPORT_REQUEST_RESERVED_OFFSET) == 0;
+        /* Importing a sync_file replaces an existing syncobj's fence;
+         * importing a syncobj FD (flags bit 0 clear) creates a new handle. */
+        return (load_u32(data + KB2_GPU_DRM_CORE_RECORD_SYNCOBJ_IMPORT_REQUEST_FLAGS_OFFSET) & 1u) ?
+            load_u32(data + KB2_GPU_DRM_CORE_RECORD_SYNCOBJ_IMPORT_REQUEST_HANDLE_OFFSET) != 0 :
+            load_u32(data + KB2_GPU_DRM_CORE_RECORD_SYNCOBJ_IMPORT_REQUEST_HANDLE_OFFSET) == 0;
     case KB2_GPU_DRM_CORE_COMMAND_SYNCOBJ_WAIT:
     case KB2_GPU_DRM_CORE_COMMAND_SYNCOBJ_TIMELINE_WAIT: {
         uint32_t flags = load_u32(

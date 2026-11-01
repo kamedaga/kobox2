@@ -102,6 +102,21 @@ static const struct mapping_completion_format amdgpu_map_format = {
         KB2_GPU_DRM_AMDGPU_COMMAND_GEM_MMAP_COMPLETION_ATTACHMENT_CPU_MAPPING_ROLE,
 };
 
+static const struct mapping_completion_format i915_map_format = {
+    .record_schema_id = KB2_GPU_DRM_I915_RECORD_GEM_MMAP_RESULT,
+    .record_size = KB2_GPU_DRM_I915_RECORD_GEM_MMAP_RESULT_SIZE,
+    .mapping_id_offset =
+        KB2_GPU_DRM_I915_RECORD_GEM_MMAP_RESULT_MAPPING_ID_OFFSET,
+    .length_offset = KB2_GPU_DRM_I915_RECORD_GEM_MMAP_RESULT_LENGTH_OFFSET,
+    .cache_policy_offset =
+        KB2_GPU_DRM_I915_RECORD_GEM_MMAP_RESULT_CACHE_POLICY_OFFSET,
+    .reserved_offset = KB2_GPU_DRM_I915_RECORD_GEM_MMAP_RESULT_RESERVED_OFFSET,
+    .attachment_argument_id =
+        KB2_GPU_DRM_I915_COMMAND_GEM_MMAP_OFFSET_COMPLETION_ATTACHMENT_CPU_MAPPING_ARGUMENT_ID,
+    .attachment_role =
+        KB2_GPU_DRM_I915_COMMAND_GEM_MMAP_OFFSET_COMPLETION_ATTACHMENT_CPU_MAPPING_ROLE,
+};
+
 kb2_protocol_status_t kb2_gpu_inline_completion_encode(uint8_t *buffer,
     size_t capacity, size_t *size_out, const kb2_gpu_inline_completion_t *completion) {
     if (!buffer || !size_out || !completion) return KB2_PROTOCOL_INVALID_ARGUMENT;
@@ -613,4 +628,18 @@ kb2_protocol_status_t kb2_gpu_amdgpu_map_completion_decode(const uint8_t *buffer
     kb2_gpu_amdgpu_map_completion_t *completion_out) {
     return mapping_completion_decode(buffer, size, expected_session,
         expected_generation, completion_out, &amdgpu_map_format);
+}
+
+kb2_protocol_status_t kb2_gpu_i915_map_completion_encode(uint8_t *buffer,
+    size_t capacity, size_t *size_out,
+    const kb2_gpu_i915_map_completion_t *completion) {
+    return mapping_completion_encode(buffer, capacity, size_out, completion,
+        &i915_map_format);
+}
+
+kb2_protocol_status_t kb2_gpu_i915_map_completion_decode(const uint8_t *buffer,
+    size_t size, uint64_t expected_session, uint64_t expected_generation,
+    kb2_gpu_i915_map_completion_t *completion_out) {
+    return mapping_completion_decode(buffer, size, expected_session,
+        expected_generation, completion_out, &i915_map_format);
 }

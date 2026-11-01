@@ -9,7 +9,7 @@
   "uapi_release": "Linux 6.18.48",
   "uapi_headers": ["drm/amdgpu_drm.h"],
   "constants": {
-    "set_id": 4,
+    "set_id": 5,
     "command_count": 20,
     "record_count": 72,
     "info_query_count": 27,
@@ -531,7 +531,7 @@
     { "id": 36, "name": "userq_firmware_areas", "records": ["info_userq_metadata"], "cardinality": "one" }
   ],
   "command_set": {
-    "set_id": 4,
+    "set_id": 5,
     "queue_class": "execution",
     "argument_model": "kobox2.gpu.argument-vector",
     "inline_argument_id": 1,

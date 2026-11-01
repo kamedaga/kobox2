@@ -37,15 +37,17 @@ typedef struct command_vector {
 } command_vector_t;
 
 static const uint8_t virgl_vector_digest[KB2_SHA256_DIGEST_SIZE] = {
-    0x10, 0xad, 0x62, 0xf5, 0xc5, 0x62, 0x2d, 0x49, 0x9e, 0x7d, 0x26,
-    0x53, 0x91, 0x2e, 0xd0, 0xb0, 0x62, 0xaf, 0xe3, 0xa6, 0x01, 0x0b,
-    0x69, 0xbf, 0x2f, 0xb8, 0x24, 0x86, 0xf5, 0x6c, 0xab, 0x60,
+    0x00, 0xd6, 0xea, 0x01, 0x05, 0xc8, 0x3a, 0x4f,
+    0xa2, 0x77, 0x71, 0xef, 0xb0, 0xc1, 0xf4, 0x68,
+    0x2f, 0x20, 0xfc, 0x04, 0xff, 0xe7, 0x00, 0x2c,
+    0x2b, 0xcb, 0x90, 0x43, 0xc1, 0xc7, 0x28, 0x31,
 };
 
 static const uint8_t amdgpu_vector_digest[KB2_SHA256_DIGEST_SIZE] = {
-    0x34, 0x9d, 0x69, 0xa7, 0x3e, 0x1b, 0xc1, 0x80, 0x6b, 0xde, 0xe5,
-    0xc8, 0xd8, 0x89, 0xec, 0xfa, 0x62, 0x69, 0xaf, 0x43, 0xb8, 0x99,
-    0x99, 0xd6, 0x2a, 0x1d, 0x7b, 0xd6, 0x4d, 0x38, 0x02, 0x41,
+    0xef, 0x8f, 0x63, 0x16, 0xc3, 0x20, 0x7e, 0x32,
+    0x95, 0xd4, 0xec, 0x25, 0x54, 0x7b, 0x54, 0x02,
+    0x40, 0xff, 0x8e, 0xb4, 0x77, 0x2f, 0x6d, 0x24,
+    0xd1, 0x5b, 0x55, 0x9e, 0xb2, 0xcc, 0xce, 0xad,
 };
 
 static void store_u32(uint8_t *destination, uint32_t value) {
@@ -308,12 +310,20 @@ static int encode_vector(command_vector_t *vector,
 
 static int test_profile_catalogs(void) {
     kb2_gpu_command_set_t virgl[3];
-    kb2_gpu_command_set_t amdgpu[3];
+    kb2_gpu_command_set_t amdgpu[3], i915[3];
     size_t index;
 
     CHECK(kb2_gpu_profile_command_set_count(KB2_GPU_PROFILE_VIRGL) == 3);
     CHECK(kb2_gpu_profile_command_set_count(KB2_GPU_PROFILE_AMDGPU) == 3);
+    CHECK(kb2_gpu_profile_command_set_count(KB2_GPU_PROFILE_I915) == 3);
     CHECK(kb2_gpu_profile_command_set_count(99) == 0);
+    for (index = 0; index < 2; ++index) {
+        CHECK(kb2_gpu_profile_command_set(KB2_GPU_PROFILE_I915, index, &i915[index]) == KB2_PROTOCOL_OK);
+        CHECK(i915[index].set_id == index + 1);
+    }
+    CHECK(kb2_gpu_profile_command_set(KB2_GPU_PROFILE_I915, 2, &i915[2]) == KB2_PROTOCOL_OK);
+    CHECK(i915[2].set_id == KB2_GPU_DRM_I915_SET_ID);
+    CHECK(kb2_gpu_profile_command_set(KB2_GPU_PROFILE_I915, 3, &i915[0]) == KB2_PROTOCOL_INVALID_ARGUMENT);
     for (index = 0; index < 3; ++index) {
         CHECK(kb2_gpu_profile_command_set(KB2_GPU_PROFILE_VIRGL, index, &virgl[index]) ==
               KB2_PROTOCOL_OK);
@@ -364,6 +374,19 @@ static int test_profile_catalogs(void) {
           KB2_GPU_ATTACHMENT_SYNCOBJ);
     CHECK(KB2_GPU_DRM_AMDGPU_COMMAND_FENCE_TO_HANDLE_COMPLETION_ATTACHMENT_NATIVE_SYNC_CLASS_1 ==
           KB2_GPU_ATTACHMENT_SYNC_FILE);
+    return 0;
+}
+
+static int test_i915_rejects_other_driver_commands(void) {
+    command_vector_t vector;
+    uint8_t buffer[4096];
+    size_t size = 0;
+    make_virgl_vector(&vector);
+    vector.source.profile_kind = KB2_GPU_PROFILE_I915;
+    CHECK(!encode_vector(&vector, buffer, sizeof(buffer), &size));
+    make_amdgpu_vector(&vector);
+    vector.source.profile_kind = KB2_GPU_PROFILE_I915;
+    CHECK(!encode_vector(&vector, buffer, sizeof(buffer), &size));
     return 0;
 }
 
@@ -847,6 +870,7 @@ static int test_inline_completion(void) {
 
 int main(void) {
     CHECK(test_profile_catalogs() == 0);
+    CHECK(test_i915_rejects_other_driver_commands() == 0);
     CHECK(test_virgl_vector() == 0);
     CHECK(test_amdgpu_vector() == 0);
     CHECK(test_wire_rejection() == 0);

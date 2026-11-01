@@ -66,6 +66,9 @@ SCHEMAS = (
     (ROOT / "protocol" / "schema" / "gpu_drm_virtgpu.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "gpu_drm_virtgpu_layout.h",
      "KB2_GPU_DRM_VIRTGPU", "KOBOX2_GPU_DRM_VIRTGPU_LAYOUT_H"),
+    (ROOT / "protocol" / "schema" / "gpu_drm_i915.json",
+     ROOT / "protocol" / "generated" / "include" / "kobox2" / "gpu_drm_i915_layout.h",
+     "KB2_GPU_DRM_I915", "KOBOX2_GPU_DRM_I915_LAYOUT_H"),
     (ROOT / "protocol" / "schema" / "gpu_drm_amdgpu.json",
      ROOT / "protocol" / "generated" / "include" / "kobox2" / "gpu_drm_amdgpu_layout.h",
      "KB2_GPU_DRM_AMDGPU", "KOBOX2_GPU_DRM_AMDGPU_LAYOUT_H"),
@@ -456,8 +459,8 @@ def validate_gpu_family(schemas):
         if command_schema.get("uapi_release") != base["uapi_release"]:
             raise ValueError("GPU command-set UAPI release mismatch")
         set_ids.add(set_id)
-    if len(set_ids) != 4:
-        raise ValueError("GPU command-set catalog must contain four sets")
+    if len(set_ids) != 5:
+        raise ValueError("GPU command-set catalog must contain five sets")
 
     profile_ids = set()
     for profile in profiles:
@@ -471,7 +474,7 @@ def validate_gpu_family(schemas):
             raise ValueError("invalid GPU profile catalog")
         profile_ids.add(profile_kind)
         referenced_set_ids.update(profile_sets)
-    if len(profile_ids) != 2 or referenced_set_ids != set_ids:
+    if len(profile_ids) != 3 or referenced_set_ids != set_ids:
         raise ValueError("GPU profile coverage mismatch")
 
 
